@@ -51,13 +51,14 @@ def check():
         info("","Please enter valid ID")
     elif in_use > 0:
         info("", "Lost item is already in locker")
+    elif locker_size == "C":
+        info("", "Please deposit item into General Chute.")
     else:
-        
-        info("", "Please desposit item into locker.")
-        #lock.off()
-        #button.wait_for_press()
-        #avail.off()
-        #lock.on()
+        lock.off()
+        info("", "Please deposit item into locker.")
+        button.wait_for_press()
+        avail.off()
+        lock.on()
         my2ndcursor = mydb.cursor()
         update_detail = "UPDATE item_details SET in_use = %d WHERE id = %s"
         val = (1,item_id)
