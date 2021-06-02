@@ -1,0 +1,13 @@
+from gpiozero import LED
+from time import sleep
+from gpiozero import Button
+
+button = Button(22)
+avail = LED(17)
+lock = LED(27)
+
+red = LED(12)
+
+red.on()
+sleep(5)
+red.off()
