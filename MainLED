@@ -1,0 +1,14 @@
+import RPi.GPIO as GPIO
+import time
+
+GPIO.setmode(GPIO.BCM)
+# If there are any errors, it's not going to record it
+GPIO.setwarnings(False)
+# GPIO PIN
+GPIO.setup(12, GPIO.OUT)
+print('LED on')
+GPIO.output(18, GPIO.HIGH)
+# This will remain the LED light to be switched on. A delay
+time.sleep(.1)
+print("LED off")
+GPIO.output(12, GPIO.LOW)
