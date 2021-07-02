@@ -1,0 +1,135 @@
+import mysql.connector
+
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="c300"
+)
+
+
+# Values Required from SQL Table item_information
+item_id = ""
+locker_size_assigned = ""
+locker_assigned = ""
+status = ""
+
+# Values Required from locker id
+locker_id = ""
+
+# Loop to check if ID matches
+i = True
+while i:
+    idnChecker = input("Please Enter the ID provided:- ")
+
+    mycursor = mydb.cursor()
+    number_of_row = "SELECT * FROM item_information"
+    mycursor.execute(number_of_row)
+    record = mycursor.fetchall()
+
+    for row in record:
+        if idnChecker == row[0]:
+            if row[3] == "RP":
+                item_id = row[0]
+                locker_size_assigned = row[2]
+                status = row[3]
+                locker_assigned = row[5]
+                i = False
+                break
+
+# Check if item is supposed to be deposited into chute, if not assign a locker
+if locker_size_assigned == "C":
+    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                          "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+    values = ("C",)
+    myccursor = mydb.cursor()
+    myccursor.execute(locker_availability, values)
+    locker_record = myccursor.fetchone()
+    locker_id = locker_record[0]
+
+else:
+    # This is the Algorithm to determine the locker size
+    myalcursor = mydb.cursor()
+    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                          "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+    values = (locker_size_assigned,)
+    myalcursor.execute(locker_availability, values)
+    locker_record = myalcursor.fetchone()
+    alchecker = myalcursor.rowcount
+
+
+    if alchecker == -1:
+        if locker_size_assigned == "S":
+            locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+            values = ("M",)
+            mymcursor = mydb.cursor()
+            mymcursor.execute(locker_availability, values)
+            locker_record = mymcursor.fetchone()
+            mlchecker = mymcursor.rowcount
+
+            if mlchecker == -1:
+                locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                      "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+                values = ("L",)
+                mylcursor = mydb.cursor()
+                mylcursor.execute(locker_availability, values)
+                locker_record = mylcursor.fetchone()
+                llchecker = mylcursor.rowcount
+                if llchecker == -1:
+                    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                          "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+                    values = ("C",)
+                    myccursor = mydb.cursor()
+                    myccursor.execute(locker_availability, values)
+                    locker_record = myccursor.fetchone()
+                    locker_id = locker_record[0]
+                else:
+                    mylcursor.execute(locker_availability, values)
+                    locker_record = mylcursor.fetchone()
+                    locker_id = locker_record[0]
+
+            else:
+                mymcursor.execute(locker_availability, values)
+                locker_record = mymcursor.fetchone()
+                locker_id = locker_record[0]
+
+        elif locker_size_assigned == "M":
+            locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+            values = ("L",)
+            mylcursor = mydb.cursor()
+            mylcursor.execute(locker_availability, values)
+            locker_record = mylcursor.fetchone()
+            llchecker = mylcursor.rowcount
+            if llchecker == -1:
+                locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                      "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+                values = ("C",)
+                myccursor = mydb.cursor()
+                myccursor.execute(locker_availability, values)
+                locker_record = myccursor.fetchone()
+                locker_id = locker_record[0]
+            else:
+                mylcursor.execute(locker_availability, values)
+                locker_record = mylcursor.fetchone()
+                locker_id = locker_record[0]
+        else:
+            locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+            values = ("C",)
+            myccursor = mydb.cursor()
+            myccursor.execute(locker_availability, values)
+            locker_record = myccursor.fetchone()
+            locker_id = locker_record[0]
+
+    else:
+        myalcursor.execute(locker_availability, values)
+        locker_record = myalcursor.fetchone()
+        locker_id = locker_record[0]
+
+myucursor = mydb.cursor()
+update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+locker_updated = ("NA", locker_id)
+myucursor.execute(update_locker, locker_updated)
+mydb.commit()
