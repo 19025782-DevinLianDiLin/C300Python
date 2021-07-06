@@ -1,0 +1,73 @@
+import smtplib
+
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+import mysql.connector
+
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="c300"
+)
+findername = ""
+finderemail = ""
+
+timedeposited = ""
+itemdescription = ""
+
+mycursor = mydb.cursor()
+number_of_row = "SELECT * FROM finder_information WHERE Finder_Id = 5 "
+mycursor.execute(number_of_row)
+record = mycursor.fetchall()
+idChecker = mycursor.rowcount
+
+if idChecker == 1:
+    for row in record:
+        findername = row[1]
+        finderemail = row[2]
+
+        i = False
+        break
+
+else:
+    f = 0
+
+number_of_row = "SELECT * FROM item_information WHERE Item_Id = 'B87AS' "
+mycursor.execute(number_of_row)
+record = mycursor.fetchall()
+idChecker = mycursor.rowcount
+
+if idChecker == 1:
+    for row in record:
+        itemdescription = row[1]
+        timedeposited = row[4]
+
+        i = False
+        break
+
+else:
+    f = 0
+
+mail_content = "Hello " + findername + ", " + "\n \n \nThank you for returning a " + str(itemdescription) +" at "+ str(timedeposited) +" the Locker Deposit System.\n \nThis email is automatically generated. Please do not reply to this email address."
+
+# The mail addresses and password
+sender_address = 'fyp2021rp@gmail.com'
+sender_pass = 'Iloverp2021'
+receiver_address = finderemail
+# Setup the MIME
+message = MIMEMultipart()
+message['From'] = sender_address
+message['To'] = receiver_address
+message['Subject'] = 'Hi There'  # The subject line
+# The body and the attachments for the mail
+message.attach(MIMEText(mail_content, 'plain'))
+# Create SMTP session for sending the mail
+session = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
+session.starttls()  # enable security
+session.login(sender_address, sender_pass)  # login with mail_id and password
+text = message.as_string()
+session.sendmail(sender_address, receiver_address, text)
+session.quit()
+
