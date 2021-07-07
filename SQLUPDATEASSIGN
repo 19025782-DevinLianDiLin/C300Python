@@ -215,3 +215,10 @@ update_locker = "UPDATE item_information SET Locker_Assigned = %s WHERE item_id 
 locker_updated = (locker_id, confirmidn)
 myassign3cursor.execute(update_locker, locker_updated)
 mydb.commit()
+
+mygpioassigncursor = mydb.cursor()
+update_locker = "UPDATE locker SET Locker_Status = %s WHERE GPIO_Button = %s AND GPIO_LED = %s"
+locker_updated = (locker_id, confirmidn)
+myassign3cursor.execute(update_locker, locker_updated)
+mydb.commit()
+
