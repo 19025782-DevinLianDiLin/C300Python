@@ -21,13 +21,35 @@ avail.on()
 lock.on()
 
 app = App("Lost and Found",height = 300,width = 450)
+import mysql.connector
 
-message = Text(app, text = "Welcome to Lost and Found", size= 20,font = "Arial", color="Green")
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password ="password", 
+    database="c300"
+    
+)
 
-uid = TextBox(app,width =20)
-in_use = 0
-item_id = ""
-locker_size = ""
+
+from guizero import App,Text,TextBox,PushButton,info,Picture
+from gpiozero import LED
+from gpiozero import Button
+
+button = Button(22)
+avail = LED(17)
+lock = LED(27)
+
+avail.on()
+lock.on()
+
+app = App("Lost and Found",height = 300,width = 450)
+picture = Picture(app,image="rplogo.png")
+message = Text(app, text = "Welcome to Lost and Found", size= 20,font = "Arial", color="Green",align ="top")
+
+message = Text(app, text = "Please enter ID",align ="top")
+uid = TextBox(app,width =20, align ="top")
+
 def check():
     check_uid = uid.value
     if check_uid =="":
@@ -36,11 +58,11 @@ def check():
         item_id = ""
         locker_size = ""
         in_use = 0
-        mycursor = mydb.cursor()
+        check = mydb.cursor()
         no_of_row = "SELECT * FROM item_details"
-        mycursor.execute(no_of_row)
-        record = mycursor.fetchall()
-    
+        check.execute(no_of_row)
+        record = check.fetchall()
+        
         for row in record:
             if check_uid == row[0]:
                 item_id = row[0]
@@ -50,7 +72,7 @@ def check():
     if item_id == "":
         info("","Please enter valid ID")
     elif in_use > 0:
-        info("", "Lost item is already in locker")
+        info("", "Lost item has already been deposited")
     elif locker_size == "C":
         info("", "Please deposit item into General Chute.")
     else:
@@ -59,16 +81,13 @@ def check():
         button.wait_for_press()
         avail.off()
         lock.on()
-        my2ndcursor = mydb.cursor()
-        update_detail = "UPDATE item_details SET in_use = %d WHERE id = %s"
-        val = (1,item_id)
-        my2ndcursor.execute(update_detail,val)
+        update = mydb.cursor()
+        update_detail = """UPDATE item_details SET in_use = 1 WHERE id = %s"""
+        update.execute(update_detail,(item_id,))
         mydb.commit()
         info("", "Thank you for the lost item deposit")
         
 
 
-check_avail = PushButton(app,text = "Confirm Unique ID",command=check)
+check_avail = PushButton(app,text = "Submit",command=check)
 app.display
-
-
