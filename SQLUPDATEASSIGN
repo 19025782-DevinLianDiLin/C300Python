@@ -154,3 +154,55 @@ update_locker = "UPDATE item_information SET Locker_Assigned = %s WHERE item_id 
 locker_updated = (locker_id, confirmidn)
 myassigncursor.execute(update_locker, locker_updated)
 mydb.commit()
+
+
+# If item is deposited in the 'Small' locker
+if locker_size == "S":
+    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                          "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+    values = ("S",)
+    myscursor = mydb.cursor()
+    myscursor.execute(locker_availability, values)
+    locker_record = myscursor.fetchone()
+
+# If item is deposited in the 'Medium' locker
+elif locker_size == "M":
+    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                          "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+    values = ("M",)
+    mymdcursor = mydb.cursor()
+    mymdcursor.execute(locker_availability, values)
+    locker_record = mymdcursor.fetchone()
+
+# If item is deposited in the 'Large' locker
+elif locker_size == "L":
+    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                          "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+    values = ("L",)
+    mylrcursor = mydb.cursor()
+    mylrcursor.execute(locker_availability, values)
+    locker_record = mylrcursor.fetchone()
+
+# If item is deposited in the 'Chute'
+else:
+    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                          "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+    values = ("C",)
+    mycucursor = mydb.cursor()
+    mycucursor.execute(locker_availability, values)
+    locker_record = mycucursor.fetchone()
+
+
+myupcursor = mydb.cursor()
+update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+locker_updated = ("NA", locker_id)
+myucursor.execute(update_locker, locker_updated)
+mydb.commit()
+
+print(locker_id)
+print(confirmidn)
+myassigncursor = mydb.cursor()
+update_locker = "UPDATE item_information SET Locker_Assigned = %s WHERE item_id = %s AND status = %s"
+locker_updated = (locker_id, confirmidn)
+myassigncursor.execute(update_locker, locker_updated)
+mydb.commit()
