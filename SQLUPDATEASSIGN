@@ -18,6 +18,11 @@ confirmidn = ""
 # Values Required from locker id
 locker_id = ""
 
+# Values Required from SQL Table locker
+locker_size = ""
+locker_status = ""
+gpio_button = ""
+
 # Loop to check if ID matches / checker included
 i = True
 while i:
