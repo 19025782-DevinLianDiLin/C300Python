@@ -156,6 +156,14 @@ locker_updated = (locker_id, confirmidn)
 myassigncursor.execute(update_locker, locker_updated)
 mydb.commit()
 
+for row in record:
+    gpio_button = row[3]
+    gpio_led = row[4]
+    i = False
+    break
+print(gpio_button)
+print(gpio_led)
+
 
 # If item is deposited in the 'Small' locker
 if locker_size == "S":
