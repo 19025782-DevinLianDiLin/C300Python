@@ -21,8 +21,8 @@ locker_id = ""
 # Values Required from SQL Table locker
 locker_size = ""
 locker_status = ""
-gpio_button = ""
-gpio_led = ""
+button = ""
+led = ""
 
 
 idnChecker = input("Please Enter the ID provided:- ")
