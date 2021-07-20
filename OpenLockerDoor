@@ -47,11 +47,11 @@ for row in record:
     locker_record = myscursor.fetchall()
     for row in record:
         locker_id = row[0]
-        gpio_button = row[3]
-        gpio_led = row[4]
+        button = row[3]
+        led = row[4]
         print(locker_id)
-        print(gpio_button)
-        print(gpio_led)
+        print(button)
+        print(led)
 
 
 myupcursor = mydb.cursor()
@@ -78,11 +78,11 @@ mygpiocursor.execute(select_locker, locker_updated)
 gpiorecord = mygpiocursor.fetchall()
 
 for row in gpiorecord:
-    gpio_button = row[3]
-    gpio_led = row[4]
+    button = row[3]
+    led = row[4]
 
-    print(gpio_button)
-    print(gpio_led)
+    print(button)
+    print(led)
 
 
 mytimecursor = mydb.cursor()
