@@ -43,7 +43,7 @@ for row in record:
 # Opening of Locker Door
     locker_avail = "SELECT * FROM locker WHERE Locker_id = %s "
     myscursor = mydb.cursor()
-    myscursor.execute(locker_avail, (locker_size_assigned,))
+    myscursor.execute(locker_avail, (locker_id, ))
     locker_record = myscursor.fetchall()
     for row in record:
         locker_id = row[0]
