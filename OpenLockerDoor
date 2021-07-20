@@ -1,0 +1,98 @@
+import mysql.connector
+import datetime
+
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="c300"
+)
+
+# Values Required from SQL Table item_information
+item_id = ""
+locker_size_assigned = ""
+locker_assigned = ""
+status = ""
+confirmidn = ""
+
+# Values Required from locker id
+locker_id = ""
+
+# Values Required from SQL Table locker
+locker_size = ""
+locker_status = ""
+gpio_button = ""
+gpio_led = ""
+
+
+idnChecker = input("Please Enter the ID provided:- ")
+mycursor = mydb.cursor()
+number_of_row = "SELECT * FROM item_information WHERE Locker_Assigned IS NULL AND item_id = %s "
+
+idsql = (idnChecker,)
+mycursor.execute(number_of_row, idsql)
+record = mycursor.fetchall()
+idChecker = mycursor.rowcount
+
+
+for row in record:
+    locker_size_assigned = row[2]
+    print(locker_size_assigned)
+
+
+# Opening of Locker Door
+    locker_avail = "SELECT * FROM locker WHERE Locker_id = %s "
+    myscursor = mydb.cursor()
+    myscursor.execute(locker_avail, (locker_size_assigned,))
+    locker_record = myscursor.fetchall()
+    for row in record:
+        locker_id = row[0]
+        gpio_button = row[3]
+        gpio_led = row[4]
+        print(locker_id)
+        print(gpio_button)
+        print(gpio_led)
+
+
+myupcursor = mydb.cursor()
+update_locker = "UPDATE locker SET Locker_status = %s WHERE Locker_id = %s "
+locker_updated = ("NA", locker_id)
+myupcursor.execute(update_locker, locker_updated)
+mydb.commit()
+
+print(locker_id)
+print(confirmidn)
+
+mystatuscursor = mydb.cursor()
+update_locker = "UPDATE item_information SET Status = 'DP' WHERE item_id = %s "
+locker_updated = (idnChecker, )
+mystatuscursor.execute(update_locker, locker_updated)
+mydb.commit()
+
+
+
+mygpiocursor = mydb.cursor()
+select_locker = "SELECT * FROM locker WHERE Locker_id = %s  "
+locker_updated = (locker_id,)
+mygpiocursor.execute(select_locker, locker_updated)
+gpiorecord = mygpiocursor.fetchall()
+
+for row in gpiorecord:
+    gpio_button = row[3]
+    gpio_led = row[4]
+
+    print(gpio_button)
+    print(gpio_led)
+
+
+mytimecursor = mydb.cursor()
+update_locker = "SELECT * FROM item_information WHERE Item_id = %s  "
+locker_updated = (locker_id,)
+mytimecursor.execute(update_locker, locker_updated)
+timerecord = mytimecursor.fetchall()
+
+for row in timerecord:
+    time_deposited = row[4]
+
+    print(time_deposited)
+
