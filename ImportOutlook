@@ -10,8 +10,8 @@ class EmailService:
         mail = outlook.CreateItem(0)
 
         mail.To = email
-        mail.Subject = "Thank you for reporting the Item"
-        mail.Body = message
+        mail.Subject = "Do-Not-Reply-RP"
+        mail.Body = "Thank you for deposit the lost item.'
 
         mail.Send()
         print("Send")
