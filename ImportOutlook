@@ -1,0 +1,19 @@
+import win32com.client as win32
+
+class EmailService:
+    def _init_(self):
+        self.sender_email = "19031456@myrp.edu.sg"
+        self.password = "1995P@nyicun123"
+
+    def sendEmail(self, email, message):
+        outlook = win32.Dispatch('outlook.application')
+        mail = outlook.CreateItem(0)
+
+        mail.To = email
+        mail.Subject = "Thank you for reporting the Item"
+        mail.Body = message
+
+        mail.Send()
+        print("Send")
+
+sendEmail=EmailService().sendEmail("19031456@myrp.edu.sg")
