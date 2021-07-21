@@ -1,0 +1,14 @@
+import os
+import pyodbc
+import urllib
+import smtplib
+from testtest import EmailService
+from dataService import DBService
+
+emailService = EmailService()
+dbService = DBService()
+student = dbService.reTrieveData(email)
+
+message = "Hello " + student["studentName"] + ", " + "\n \n \nThank you for returning a " + student[itemdescription]+" at "+ student["nowTime"] +" the Locker Deposit System.\n \nThis email is automatically generated. Please do not reply to this email address."
+
+emailService.sendEmail(email,message)
