@@ -51,7 +51,7 @@ for row in record:
         led = row[4]
  
  
-# Printing of Time when Item is Dpeosited
+# Printing of Time when Item is Deposited
 now = datetime.now()
 current_time = now.strftime("%Y-%m-%d %H:%M:%S")
 print(current_time)
