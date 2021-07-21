@@ -5,25 +5,26 @@ from urllib.parse import quote_plus
 
 class DBService:
     def _init_(self):
-        server=""
-        database="c300"
-        driver='{}'
+        server = "localhost3306"
+        database = "c300"
+        driver = '{}'
 
         self.connectionStr = 'DRIVER='+driver+';SERVER='+server+';DATABASE='+database+'; Trusted_Connection=yes'
 
-    def reTrieveData(self,email):
-        data={}
+    def reTrieveData(self, email):
+        data = {}
 
         with pyodbc.connect(self.connectionStr) as conn:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM ____ where email='"+email+"'")
-                row=cursor.fetchone()
+                cursor.execute("SELECT * FROM finder_information where email='"+email+"'")
+                row = cursor.fetchone()
 
                 while row:
-                    data['studentEmail']=str(row[ ])
-                    data['studentName']=str(row[])
+                    data['studentEmail'] = str(row[2])
+                    data['studentName'] = str(row[1])
+                    data['']
 
-                    row=cursor.fetchone()
+                    row = cursor.fetchone()
         return data
 
 
