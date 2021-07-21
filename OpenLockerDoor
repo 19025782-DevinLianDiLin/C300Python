@@ -1,5 +1,5 @@
 import mysql.connector
-import datetime
+from datetime import datetime
 
 mydb = mysql.connector.connect(
     host="localhost",
@@ -49,9 +49,12 @@ for row in record:
         locker_id = row[0]
         button = row[3]
         led = row[4]
-        print(locker_id)
-        print(button)
-        print(led)
+ 
+ 
+# Printing of Time when Item is Dpeosited
+now = datetime.now()
+current_time = now.strftime("%Y-%m-%d %H:%M:%S")
+print(current_time)
 
 
 myupcursor = mydb.cursor()
