@@ -22,7 +22,6 @@ class DBService:
                 while row:
                     data['studentEmail'] = str(row[2])
                     data['studentName'] = str(row[1])
-                    data['']
 
                     row = cursor.fetchone()
         return data
