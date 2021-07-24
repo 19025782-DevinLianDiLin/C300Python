@@ -1,0 +1,201 @@
+import mysql.connector
+import string
+import random
+import datetime
+
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="c300"
+
+)
+getData = mydb.cursor()
+updateData = mydb.cursor()
+addData = mydb.cursor()
+
+
+
+
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+
+
+def Check():
+    getFinder = "SELECT * FROM finder_information WHERE finder_name = %s AND finder_email = %s "
+    Find = (chk_name, chk_email)
+    getData.execute(getFinder, Find)
+
+
+chk_name = input("Enter Your Name: ")
+chk_email = input("Enter Your Email Address: ")
+chk_descrip = input("Enter Description : ")
+chk_location = input("Enter last Found: ")
+size = input("Enter Item Size: ")
+
+while True:
+    rdmiddp = id_generator(6, "QWERTYUIOPASDFGHJKLZXCVBNM123456789")
+    rIdChecker = "SELECT * FROM item_information WHERE Item_Deposit_ID = %s "
+    rValues = (rdmiddp,)
+    getData.execute(rIdChecker, rValues)
+    rLocker_record = getData.fetchall()
+    rChecker = getData.rowcount
+    if rChecker == 1:
+
+        continue
+    else:
+        rdmidrt = id_generator(7, "QWERTYUIOPASDFGHJKLZXCVBNM123456789")
+        rIdChecker = "SELECT * FROM item_information WHERE Item_Deposit_ID = %s "
+        rValues = (rdmidrt,)
+        getData.execute(rIdChecker, rValues)
+        rLocker_record = getData.fetchall()
+        rChecker = getData.rowcount
+        if rChecker == 1:
+            continue
+        else:
+            break
+
+Check()
+fInfo = getData.fetchall()
+fInfoCheck = getData.rowcount
+
+if fInfoCheck == 1:
+    for row in fInfo:
+        sql_id = row[0]
+        print(sql_id)
+        break
+else:
+    addFind = "INSERT INTO finder_information (finder_name, finder_email) VALUES (%s, %s)"
+    valFind = (chk_name, chk_email)
+    addData.execute(addFind, valFind)
+
+    mydb.commit()
+
+    Check()
+    getId = getData.fetchall()
+    for row in getId:
+
+        sql_id = row[0]
+
+        break
+
+itemInfo = "INSERT INTO item_information (item_Deposit_id,item_Retrieve_id, item_description, item_Last_Found, Locker_Size_Assigned, status, reported_user ) VALUES (%s,%s,%s,%s,%s,%s,%s)"
+addItem = (rdmiddp, rdmidrt, chk_descrip, chk_location, size, "RP", sql_id)
+addData.execute(itemInfo, addItem)
+mydb.commit()
+
+if size == "C":
+    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                          "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+    values = ("C",)
+    getData.execute(locker_availability, values)
+    locker_record = getData.fetchone()
+    locker_id = locker_record[0]
+
+else:
+    j = True
+    while j:
+        # This is the Algorithm to determine the locker size
+        locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                              "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+        values = (size,)
+        getData.execute(locker_availability, values)
+        locker_record = getData.fetchone()
+        alchecker = getData.rowcount
+
+        if alchecker == -1:
+            if size == "S":
+                size = "M"
+                continue
+            elif size == "M":
+                size = "L"
+                continue
+            else:
+                locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                      "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+
+                values = ("C",)
+                getData.execute(locker_availability, values)
+                locker_record = getData.fetchone()
+                locker_id = locker_record[0]
+                break
+
+        else:
+            getData.execute(locker_availability, values)
+            locker_record = getData.fetchone()
+            locker_id = locker_record[0]
+            break
+
+
+update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+locker_updated = ("NA", locker_id)
+updateData.execute(update_locker, locker_updated)
+mydb.commit()
+
+update_locker = "UPDATE item_information SET Locker_Assigned = %s WHERE item_deposit_id = %s "
+locker_updated = (locker_id, rdmiddp)
+updateData.execute(update_locker, locker_updated)
+mydb.commit()
+
+update_locker = "UPDATE item_information SET Status = %s WHERE item_deposit_id = %s "
+locker_updated = ('DP', rdmiddp)
+updateData.execute(update_locker, locker_updated)
+mydb.commit()
+
+now = datetime.datetime.now()
+update_locker = "UPDATE item_information SET Time_Deposited = %s WHERE item_deposit_id = %s "
+locker_updated = (now, rdmiddp)
+updateData.execute(update_locker, locker_updated)
+mydb.commit()
+
+
+import datetime
+import mysql.connector
+
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="c300"
+)
+i = True
+while i:
+    IdNo = input("Please Enter the ID provided:- ")
+    IdCheckCursor = mydb.cursor()
+    IdCheckSQL = "SELECT * FROM item_information WHERE Status = %s AND Item_Retrieve_Id = %s"
+    IdCheckSQLVar = ('DP', IdNo)
+    IdCheckCursor.execute(IdCheckSQL, IdCheckSQLVar)
+    IdCheckSQLResult = IdCheckCursor.fetchall()
+    IdChecker = IdCheckCursor.rowcount
+    print(IdChecker)
+    print("Apples")
+
+    if IdChecker == 1:
+        print(IdChecker)
+        for row in IdCheckSQLResult:
+            locker_assigned = row[2]
+            print("aaaa")
+            i = False
+            break
+
+    else:
+        print("ID is Wrong, Please Try Again ")
+
+mystatuscursor = mydb.cursor()
+update_locker = "UPDATE item_information SET Status = %s WHERE item_retrieve_id = %s "
+locker_updated = ('RT', IdNo)
+mystatuscursor.execute(update_locker, locker_updated)
+mydb.commit()
+
+mystatuscursor = mydb.cursor()
+now = datetime.datetime.now()
+update_locker = "UPDATE item_information SET Time_Retrieved = %s WHERE item_retrieve_id = %s "
+locker_updated = (now, IdNo)
+mystatuscursor.execute(update_locker, locker_updated)
+mydb.commit()
+
+mystatuscursor = mydb.cursor()
+update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+locker_updated = ('A', locker_assigned)
+mystatuscursor.execute(update_locker, locker_updated)
+mydb.commit()
