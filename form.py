@@ -18,28 +18,27 @@ addData = mydb.cursor()
 from guizero import App,Text,TextBox,PushButton,info,Picture,Window,ButtonGroup,Box
 from gpiozero import LED
 from gpiozero import Button
-
+from time import sleep
 def reportItem():
     app.hide()
-    window1.show()
+    windowReport.show()
     
 def submitItem():
     app.hide()
-    message.append("Submit Lost Item")
     window.show()
     
 def retrieveItem():
     app.hide()
-    message.append("Retrieve Lost Item")
-    window.show()
+    window1.show()
     
 
 def confirm():
     check_uid = uid.value
     if check_uid =="":
         info("", "Please enter ID")
+        
     else:      
-        number_of_row = "SELECT * FROM item_information WHERE Locker_Assigned IS NULL AND item_id = %s "
+        number_of_row = "SELECT * FROM item_information WHERE Locker_Assigned IS NULL AND item_deposit_id = %s "
         
         idsql = (check_uid,)
         getData.execute(number_of_row, idsql)
@@ -49,9 +48,8 @@ def confirm():
             info("","Invalid ID")
         else:
             for row in record:
-                locker_size_assigned = row[4]
+                locker_size_assigned = row[5]
                 
-                locker_assigned = row[9]
                 
                 
             if locker_size_assigned == "C":
@@ -106,10 +104,8 @@ def confirm():
                             
                         
                         
-                    else:
-                        
+                    else:                        
                         getData.execute(locker_availability, values)
-                        
                         locker_record = getData.fetchone()
                         locker_id = locker_record[0]
                         led = locker_record[4]
@@ -117,48 +113,72 @@ def confirm():
                         
                         j = False
                         break
-                            
-
-            
+            uid.clear()
             update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
             locker_updated = ("NA", locker_id)
             updateData.execute(update_locker, locker_updated)
             mydb.commit()
 
             
-            update_locker = "UPDATE item_information SET Locker_Assigned = %s WHERE item_id = %s "
+            update_locker = "UPDATE item_information SET Locker_Assigned = %s WHERE item_deposit_id = %s "
             locker_updated = (locker_id, check_uid)
             
             updateData.execute(update_locker, locker_updated)
             mydb.commit()
             
-    
-            window2.show()
+            if button == 0 and led ==0:
+                info("","Test")
+            else:
+                button_gpio = Button(button)
+                lock_gpio = LED(led)
+                lock_gpio.on()
+                info("","Please deposit item into Locker")
+                button_gpio.wait_for_press()
+                lock_gpio.off()
+
             
-            
-            button_gpio = Button(button)
-            lock_gpio = LED(led)
-            lock_gpio.on()
-            button_gpio.wait_for_press()
-            lock_gpio.off()
-            window2.hide()
             info("","Thank You for Depositing Lost Item")
             
             now = datetime.datetime.now()
             
             mystatuscursor = mydb.cursor()
-            update_locker = "UPDATE item_information SET Status = %s WHERE item_id = %s"
+            update_locker = "UPDATE item_information SET Status = %s WHERE item_deposit_id = %s"
             locker_updated = ('DP',check_uid)
             mystatuscursor.execute(update_locker, locker_updated)
             mydb.commit()
             
             mystatuscursor = mydb.cursor()
-            update_locker = "UPDATE item_information SET Time_Deposited = %s WHERE item_id = %s"
+            update_locker = "UPDATE item_information SET Time_Deposited = %s WHERE item_deposit_id = %s"
             locker_updated = (now,check_uid)
             mystatuscursor.execute(update_locker, locker_updated)
             mydb.commit()
             
             
+            
+            
+def retrieve():
+    check_uid = uid1.value
+    if check_uid =="":
+        info("", "Please enter ID")
+        
+    
+        
+    else:
+        IdCheckSQL = "SELECT * FROM item_information WHERE Status = %s AND Item_Retrieve_Id = %s"
+        IdCheckSQLVar = ('DP', check_uid)
+        getData.execute(IdCheckSQL, IdCheckSQLVar)
+        IdCheckSQLResult = IdCheckCursor.fetchall()
+        IdChecker = IdCheckCursor.rowcount
+
+        if IdChecker == 1:
+            print(IdChecker)
+            for row in IdCheckSQLResult:
+                locker_assigned = row[2]
+                i = False
+                break
+
+        else:
+            info("","ID is Wrong, Please Try Again ")
             
                         
 
@@ -169,153 +189,169 @@ def Check():
     getFinder = "SELECT * FROM finder_information WHERE finder_name = %s AND finder_email = %s "
     Find = (name.value, email.value)
     getData.execute(getFinder, Find)
+
     
         
 def confirmReport():
-    sql_id = 1
+    
     chk_name = name.value
     chk_email = email.value
     chk_descrip = description.value
     chk_location = location.value
     if chk_name=="" or chk_email=="" or chk_descrip == "" or chk_location =="":
         info("", "Please enter your name, email, item description, and location found")
-        print(choice.value)
+        
     else:
+        if choice.value == "Small":
+            size = "S"
+        elif choice.value == "Medium":
+            size = "M"
+        elif choice.value == "Large":
+            size = "L"
+        else:
+            size = "C"
         
         while True:
             rdmid = id_generator(6, "QWERTYUIOPASDFGHJKLZXCVBNM123456789")
             
-            rIdChecker = "SELECT * FROM item_information WHERE item_id = %s "
+            rIdChecker = "SELECT * FROM item_information WHERE item_deposit_id = %s "
             rValues = (rdmid,)
             getData.execute(rIdChecker, rValues)
             rLocker_record = getData.fetchall()
             rChecker = getData.rowcount
-        
+            
             if rChecker == 1:
                 continue
             else:
                 now = datetime.datetime.now()
+                
                 Check()
                 fInfo = getData.fetchall()
                 fInfoCheck = getData.rowcount
                 
                 if fInfoCheck == 1:
                     for row in fInfo:
-                        sql_id = row[0]
-                        break
+                        sql_id =row[0]
+                    itemInfo = "INSERT INTO item_information (item_deposit_id, item_description, item_Last_Found, Locker_Size_Assigned,status, time_reported, reported_user ) VALUES (%s,%s,%s,%s,%s,%s,%s)"
+                    addItem = (rdmid, chk_descrip, chk_location, size, "RP", now, sql_id)
+                    addData.execute(itemInfo, addItem)
+                    mydb.commit()
+                       
                 else:
                     addFind = "INSERT INTO finder_information (finder_name, finder_email) VALUES (%s, %s)"
                     valFind = (chk_name, chk_email)
                     addData.execute(addFind, valFind)
                     mydb.commit()
-                    
+                    Check()
                     getId = addData.fetchall()
                     for row in getId:
                         sql_id =row[0]
-                        
-                
+                    itemInfo = "INSERT INTO item_information (item_deposit_id, item_description, item_Last_Found,Locker_Size_Assigned,status, time_reported, reported_user ) VALUES (%s,%s,%s,%s,%s,%s,%s)"
+                    addItem = (rdmid, chk_descrip, chk_location, size, "RP", now, sql_id)                 
+                    addData.execute(itemInfo, addItem)
+                    mydb.commit()
             break
-        if choice.value == "Card":
-            size = "S"
-        elif choice.value == "Wallet":
-            size = "M"
-        elif choice.value == "Phone":
-            size = "L"
-        else:
-            size = "C"
+        name.clear()
+        email.clear()
+        location.clear()
+        description.clear()
+        info("","Please Desposit Item into Locker or Bin")
         
-        itemInfo = "INSERT INTO item_information (item_id, item_description, item_Last_Found, Locker_Size_Assigned,status, time_reported, reported_user ) VALUES (%s,%s,%s,%s,%s,%s,%s)"
-        addItem = (rdmid, chk_descrip, chk_location, size, "RP", now, sql_id)
-        addData.execute(itemInfo, addItem)
-        mydb.commit()
-        print(rdmid)
-        print(description.value)
-        print(location.value)
-        print(size)
-        print(now)
-        print(sql_id)
-        
-            
-        
-        
-
-
-        
-        
-        info("","Submitted")
-    
-    
     
 def Close():
     app.show()
     window.hide()
-    uid.clear()
-    message.clear()
     window1.hide()
+    uid.clear()
+    uid1.clear()
+    windowReport.hide()
     name.clear()
     email.clear()
+    location.clear()
     description.clear()
     
     
     
 # GUI
-app = App("Lost and Found",height = 300,width = 450)
+app = App("Lost and Found",height = 450,width = 800)
 picture = Picture(app,image="rplogo.png")
-Text(app, text = "Welcome to Lost and Found", size= 20,font = "Arial")
+Text(app, text = "Welcome to Lost and Found", size= 24,font = "Arial")
+Text(app)
 #Buttons to report, submit, and retrieve button
-reportItem = PushButton(app,text = "Report lost item",command=reportItem)
-submitItem = PushButton(app,text = "Submit lost item",command=submitItem)
-retrieveItem =PushButton(app,text = "  Retrieve item   ",command=retrieveItem)
+reportItem = PushButton(app,text = "Report lost item",height=1,width=20,command=reportItem)
+reportItem.text_size = 16
+submitItem = PushButton(app,text = "Submit lost item",height=1,width=20,command=submitItem)
+submitItem.text_size = 16
+retrieveItem =PushButton(app,text = "Retrieve item",height=1,width=20,command=retrieveItem)
+retrieveItem.text_size = 16
 app.display
 
-#Form for Submit/Retrieve lost item
-window = Window(app, title= " ",height = 300,width = 450)
+
+
+
+#Form for Submit lost item
+window = Window(app, title= " ",height = 600,width = 800)
 window.hide()
 picture = Picture(window,image="rplogo.png")
-message = Text(window, size=14)
+Text(window, text="Submit Lost Item",size=18)
 Text(window)
-Text(window, text = "Please enter ID")
+Text(window, text = "Please enter ID",size = 14)
 uid = TextBox(window,width =20)
+uid.text_size=14
+Text(window)
 #Layout for buttons
 formBox = Box(window,layout="grid")
-PushButton(formBox,text = "Confirm",command=confirm, grid=[0,0])
-PushButton(formBox,text = "Close",command=Close, grid=[1,0])
+PushButton(formBox,text = "Confirm",command=confirm, grid=[0,0]).text_size=14
+PushButton(formBox,text = "Close",command=Close, grid=[1,0]).text_size=14
 
-
-#Form for reporting lost item
-window1 = Window(app, title= " ",height = 450,width = 450)
+window1 = Window(app, title= " ",height = 600,width = 800)
 window1.hide()
 picture = Picture(window1,image="rplogo.png")
-message1 = Text(window1, text="Please enter item details",font="Arial")
+Text(window1,text="Retrieve Lost Item", size=18)
 Text(window1)
-#Layout for user to enter item details
-formBox1 = Box(window1,layout="grid")
-Text(formBox1, grid=[0,0],text="Name*")
-name = TextBox(formBox1, grid=[1,0],width=20)
-Text(formBox1, grid=[0,1], text="Email*")
-email = TextBox(formBox1, grid=[1,1],width=20)
-
-Text(formBox1, grid=[0,2],text="Item Type")
-choice = ButtonGroup(formBox1,
-            options=["Card", "Wallet", "Phone","Others"],
-            selected="Card",grid=[1,2],align="left" )
-
-
-
-
-
-Text(formBox1, grid=[0,3],text="Item Description")
-description = TextBox(formBox1, grid=[1,3],width=20)
-Text(formBox1, grid=[0,4],text="Location Found")
-location = TextBox(formBox1, grid=[1,4],width=20)
+Text(window1, text = "Please enter ID",size = 14)
+uid1 = TextBox(window1,width =20)
+uid1.text_size=14
 Text(window1)
 #Layout for buttons
-formBox2 = Box(window1,layout="grid")
+formBoxRpt = Box(window1,layout="grid")
+PushButton(formBoxRpt,text = "Confirm",command=retrieve, grid=[0,0]).text_size=14
+PushButton(formBoxRpt,text = "Close",command=Close, grid=[1,0]).text_size=14
+
+#Form for reporting lost item
+windowReport = Window(app, title= " ",height = 600,width = 800)
+windowReport.hide()
+picture = Picture(windowReport,image="rplogo.png")
+message1 = Text(windowReport, text="Please enter item details",font="Arial",size=20)
+Text(windowReport)
+#Layout for user to enter item details
+formBox1 = Box(windowReport,layout="grid")
+Text(formBox1, grid=[0,0],text="Name*",size =14)
+name = TextBox(formBox1, grid=[1,0],width=20)
+name.text_size=14
+Text(formBox1, grid=[0,1], text="Email*",size =14)
+email = TextBox(formBox1, grid=[1,1],width=20)
+email.text_size=14
+
+Text(formBox1, grid=[0,2],text="Locker Size",size =14)
+choice = ButtonGroup(formBox1,
+            options=["Small", "Medium", "Large","Chute"],
+            selected="Small",grid=[1,2],align="left" )
+choice.text_size=14
+
+Text(formBox1, grid=[0,3],text="Item Description",size =14)
+description = TextBox(formBox1, grid=[1,3],width=20)
+description.text_size=14
+Text(formBox1, grid=[0,4],text="Location Found",size =14)
+location = TextBox(formBox1, grid=[1,4],width=20)
+location.text_size=14
+Text(windowReport)
+#Layout for buttons
+formBox2 = Box(windowReport,layout="grid")
 PushButton(formBox2,text = "Confirm",command=confirmReport, grid=[0,0])
 PushButton(formBox2,text = "Close",command=Close, grid=[1,0])
 
-window2 = Window(app, title= " ",height = 200,width = 600)
-Text(window2, text="Please Deposit Item into Locker")
-window2.hide()
+
+
 
 
