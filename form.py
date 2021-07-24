@@ -19,6 +19,7 @@ from guizero import App,Text,TextBox,PushButton,info,Picture,Window,ButtonGroup,
 from gpiozero import LED
 from gpiozero import Button
 from time import sleep
+
 def reportItem():
     app.hide()
     windowReport.show()
@@ -31,6 +32,21 @@ def retrieveItem():
     app.hide()
     window1.show()
     
+def assignChute():
+    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+    values = ("C",)
+    
+    getData.execute(locker_availability, values)
+    locker_record = getData.fetchone()
+    
+    locker_id = locker_record[0]
+    led = locker_record[4]
+    button = locker_record[3]
+    
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+
 
 def confirm():
     check_uid = uid.value
@@ -48,22 +64,13 @@ def confirm():
             info("","Invalid ID")
         else:
             for row in record:
+                id = row[0]
                 locker_size_assigned = row[5]
                 
-                
-                
+                    
             if locker_size_assigned == "C":
-                locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
-                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
-                values = ("C",)
+                assignChute()
                 
-                getData.execute(locker_availability, values)
-                locker_record = getData.fetchone()
-                
-                locker_id = locker_record[0]
-                led = locker_record[4]
-                button = locker_record[3]
-            
             else:
                 j = True
                 while j:
@@ -88,16 +95,7 @@ def confirm():
                             
                             
                         else:
-                            locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
-                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
-                            values = ("C",)
-                            
-                            getData.execute(locker_availability, values)
-                            locker_record = getData.fetchone()
-                            
-                            locker_id = locker_record[0]
-                            led = locker_record[4]
-                            button = locker_record[3]
+                            assignChute()
                             
                             j = False
                             break
@@ -113,6 +111,7 @@ def confirm():
                         
                         j = False
                         break
+                    
             uid.clear()
             update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
             locker_updated = ("NA", locker_id)
@@ -126,7 +125,7 @@ def confirm():
             updateData.execute(update_locker, locker_updated)
             mydb.commit()
             
-            if button == 0 and led ==0:
+            if button == 0 and led == 0:
                 info("","Test")
             else:
                 button_gpio = Button(button)
@@ -141,17 +140,36 @@ def confirm():
             
             now = datetime.datetime.now()
             
-            mystatuscursor = mydb.cursor()
+            
             update_locker = "UPDATE item_information SET Status = %s WHERE item_deposit_id = %s"
             locker_updated = ('DP',check_uid)
-            mystatuscursor.execute(update_locker, locker_updated)
+            updateData.execute(update_locker, locker_updated)
             mydb.commit()
             
-            mystatuscursor = mydb.cursor()
+            
             update_locker = "UPDATE item_information SET Time_Deposited = %s WHERE item_deposit_id = %s"
             locker_updated = (now,check_uid)
-            mystatuscursor.execute(update_locker, locker_updated)
+            updateData.execute(update_locker, locker_updated)
             mydb.commit()
+            
+            while True:
+                rdmid2 = id_generator(6, "QWERTYUIOPASDFGHJKLZXCVBNM123456789")
+            
+                rIdChecker = "SELECT * FROM item_information WHERE Item_Retrieve_Id = %s "
+                rValues = (rdmid2,)
+                getData.execute(rIdChecker, rValues)
+                rLocker_record = getData.fetchall()
+                rChecker = getData.rowcount
+                
+                if rChecker == 1:
+                    continue
+                else:
+                    itemInfo2 = "UPDATE item_information SET Item_Retrieve_ID = %s WHERE id = %s"
+                    addItem2 = (rdmid2,id)                 
+                    addData.execute(itemInfo2, addItem2)
+                    mydb.commit()
+                    False
+                    break
             
             
             
@@ -167,23 +185,66 @@ def retrieve():
         IdCheckSQL = "SELECT * FROM item_information WHERE Status = %s AND Item_Retrieve_Id = %s"
         IdCheckSQLVar = ('DP', check_uid)
         getData.execute(IdCheckSQL, IdCheckSQLVar)
-        IdCheckSQLResult = IdCheckCursor.fetchall()
-        IdChecker = IdCheckCursor.rowcount
+        IdCheckSQLResult = getData.fetchone()
+        IdChecker = getData.rowcount
 
         if IdChecker == 1:
-            print(IdChecker)
-            for row in IdCheckSQLResult:
-                locker_assigned = row[2]
-                i = False
-                break
+            
+            getData.execute(IdCheckSQL, IdCheckSQLVar)
+            IdCheckSQLResult = getData.fetchone()
+            
+            
+            
+            locker_assigned = IdCheckSQLResult[10]
+                
+            
+            
+            lockerinfo = "SELECT * FROM locker WHERE locker_id = %s"
+            lockerinfovar = (locker_assigned,)
+            getData.execute(lockerinfo, lockerinfovar)
+            locker_record = getData.fetchone()
+            
+            led = locker_record[4]
+            button = locker_record[3]
+            button_gpio = Button(button) 
+            lock_gpio = LED(led)
+            lock_gpio.on()
+            info("","Please retrieve item from Locker " + str(locker_assigned))
+            button_gpio.wait_for_press()
+            lock_gpio.off()
+            
+            
+            
+            update_locker = "UPDATE item_information SET Status = %s WHERE item_retrieve_id = %s "
+            locker_updated = ('RT', check_uid)
+            updateData.execute(update_locker, locker_updated)
+            mydb.commit()
+
+            
+            now = datetime.datetime.now()
+            update_locker = "UPDATE item_information SET Time_Retrieved = %s WHERE item_retrieve_id = %s "
+            locker_updated = (now, check_uid)
+            updateData.execute(update_locker, locker_updated)
+            mydb.commit()
+
+            
+            update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+            locker_updated = ('A', locker_assigned)
+            updateData.execute(update_locker, locker_updated)
+            mydb.commit()
+            
+            info("","Thank You for Depositing Lost Item")
+            
+                        
+                        
+                
 
         else:
             info("","ID is Wrong, Please Try Again ")
             
                         
 
-def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
-    return ''.join(random.choice(chars) for _ in range(size))
+
 
 def Check():
     getFinder = "SELECT * FROM finder_information WHERE finder_name = %s AND finder_email = %s "
@@ -223,7 +284,6 @@ def confirmReport():
             if rChecker == 1:
                 continue
             else:
-                now = datetime.datetime.now()
                 
                 Check()
                 fInfo = getData.fetchall()
@@ -232,8 +292,8 @@ def confirmReport():
                 if fInfoCheck == 1:
                     for row in fInfo:
                         sql_id =row[0]
-                    itemInfo = "INSERT INTO item_information (item_deposit_id, item_description, item_Last_Found, Locker_Size_Assigned,status, time_reported, reported_user ) VALUES (%s,%s,%s,%s,%s,%s,%s)"
-                    addItem = (rdmid, chk_descrip, chk_location, size, "RP", now, sql_id)
+                    itemInfo = "INSERT INTO item_information (item_deposit_id, item_description,item_Last_Found,Locker_Size_Assigned,status, reported_user ) VALUES (%s,%s,%s,%s,%s,%s)"
+                    addItem = (rdmid, chk_descrip, chk_location, size, "RP", sql_id)                 
                     addData.execute(itemInfo, addItem)
                     mydb.commit()
                        
@@ -246,8 +306,8 @@ def confirmReport():
                     getId = addData.fetchall()
                     for row in getId:
                         sql_id =row[0]
-                    itemInfo = "INSERT INTO item_information (item_deposit_id, item_description, item_Last_Found,Locker_Size_Assigned,status, time_reported, reported_user ) VALUES (%s,%s,%s,%s,%s,%s,%s)"
-                    addItem = (rdmid, chk_descrip, chk_location, size, "RP", now, sql_id)                 
+                    itemInfo = "INSERT INTO item_information (item_deposit_id, item_description,item_Last_Found,Locker_Size_Assigned,status, reported_user ) VALUES (%s,%s,%s,%s,%s,%s)"
+                    addItem = (rdmid, chk_descrip, chk_location, size, "RP", sql_id)                 
                     addData.execute(itemInfo, addItem)
                     mydb.commit()
             break
@@ -350,7 +410,6 @@ Text(windowReport)
 formBox2 = Box(windowReport,layout="grid")
 PushButton(formBox2,text = "Confirm",command=confirmReport, grid=[0,0])
 PushButton(formBox2,text = "Close",command=Close, grid=[1,0])
-
 
 
 
