@@ -2,8 +2,8 @@ import win32com.client as win32
 
 class EmailService:
     def _init_(self):
-        self.sender_email = "19031456@myrp.edu.sg"
-        self.password = "1995P@nyicun123"
+        self.sender_email = "<insert email>"
+        self.password = "<insert password>"
 
     def sendEmail(self, email, message):
         outlook = win32.Dispatch('outlook.application')
@@ -16,4 +16,4 @@ class EmailService:
         mail.Send()
         print("Send")
 
-sendEmail=EmailService().sendEmail("19031456@myrp.edu.sg")
+sendEmail=EmailService().sendEmail(<insert email>)
