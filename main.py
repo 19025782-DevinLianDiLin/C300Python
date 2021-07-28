@@ -29,17 +29,19 @@ def reportItem():
     windowReport.show()
     window1.hide()
     window.hide()
+    app.hide()
     
 def submitItem():
     window.show()
     window1.hide()
     windowReport.hide()
-
+    app.hide()
 
 def retrieveItem():
     window1.show()
     window.hide()
     windowReport.hide()
+    app.hide()
 
 
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
@@ -51,14 +53,14 @@ def chute():
     info("","Please deposit item into chute")
     try:
         GPIO.setmode(GPIO.BCM)
-        TRIG=20
-        ECHO=16
-        
+        TRIG=23
+        ECHO=24
+        b= False
         GPIO.setup(TRIG,GPIO.OUT)
         GPIO.setup(ECHO,GPIO.IN)
-        
-        
-        while i<3:
+        e = 0
+
+        while b == False:
             GPIO.output(TRIG,False)
             time.sleep(1.2)
             GPIO.output(TRIG,True)
@@ -73,12 +75,20 @@ def chute():
                 stop = time.time()
 
             elasped = stop-start
-            distance = elasped * 17150
+            distance = elasped * 34300
             distance = distance/2
-            print("Distance : %2.f cm"%distance)
-            if distance<3 or distance>5:
+            print("Distance : %2.2f cm"%distance)
+            if distance<26 or distance>26.6:
                 i=i+1
-                print("Test")
+                if i>4:
+                    b=True
+                    info("","Thank You for Depositing Lost Item")
+            e=e+1
+            if e >15:
+                b=True
+                info("","Error, please head to counter for help")
+
+                
     finally:
         GPIO.cleanup()
 def confirm():
@@ -185,9 +195,10 @@ def confirm():
                 info("","Please deposit item into Locker")
                 button_gpio.wait_for_press()
                 lock_gpio.off()
+                info("","Thank You for Depositing Lost Item")
 
             
-            info("","Thank You for Depositing Lost Item")
+            
             
             now = datetime.datetime.now()
             
@@ -256,13 +267,18 @@ def retrieve():
             
             led = locker_record[4]
             button = locker_record[3]
-            button_gpio = Button(button) 
-            lock_gpio = LED(led)
-            lock_gpio.on()
-            info("","Please retrieve item from Locker")
-            button_gpio.wait_for_press()
-            lock_gpio.off()
             
+            if led == 0 or button == 0:
+                info("","Please head to counter to retrieve lost item")
+            else:
+                button_gpio = Button(button) 
+                lock_gpio = LED(led)
+                lock_gpio.on()
+                info("","Please retrieve item from Locker")
+                button_gpio.wait_for_press()
+                lock_gpio.off()
+                info("","Thank you for retrieving your lost item.")
+                
             
             
             update_locker = "UPDATE item_information SET Status = %s WHERE item_retrieve_id = %s "
@@ -283,7 +299,7 @@ def retrieve():
             updateData.execute(update_locker, locker_updated)
             mydb.commit()
             
-            info("","Thank you for retrieving your lost item.")
+            
             uid1.clear()
                         
                         
@@ -369,6 +385,7 @@ def confirmReport():
         
     
 def Close():
+    app.show()
     window.hide()
     window1.hide()
     uid.clear()
@@ -396,7 +413,7 @@ submitItem.text_size = 16
 retrieveItem =PushButton(app,text = "Retrieve item",height=1,width=20,command=retrieveItem)
 retrieveItem.text_size = 16
 app.display
-
+app.full_screen = True
 
 
 
@@ -409,6 +426,7 @@ Text(window)
 Text(window, text = "Please enter ID",size = 16)
 uid = TextBox(window,width =20)
 uid.text_size=14
+window.full_screen = True
 
 #Layout for buttons
 formBox = Box(window,layout="grid")
@@ -442,7 +460,7 @@ Text(window1)
 Text(window1, text = "Please enter ID",size = 16)
 uid1 = TextBox(window1,width =20)
 uid1.text_size=14
-
+window1.full_screen=True
 #Layout for buttons
 formBoxRpt = Box(window1,layout="grid")
 PushButton(formBoxRpt,text = "Confirm",command=retrieve, grid=[0,0]).text_size=14
@@ -494,6 +512,7 @@ Text(formBox1, grid=[0,4],text="Location Found*",size =14)
 location = TextBox(formBox1, grid=[1,4],width=20)
 location.text_size=14
 Text(windowReport)
+windowReport.full_screen=True
 #Layout for buttons
 formBox2 = Box(windowReport,layout="grid")
 PushButton(formBox2,text = "Confirm",command=confirmReport, grid=[0,0])
