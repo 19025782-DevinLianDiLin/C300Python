@@ -2,6 +2,8 @@ import mysql.connector
 import string
 import random
 import datetime
+import smtplib
+from Email import Emailer
 
 mydb = mysql.connector.connect(
     host="localhost",
@@ -15,39 +17,86 @@ getData = mydb.cursor()
 updateData = mydb.cursor()
 addData = mydb.cursor()
 
+#Information:server,port number,email username,email password
+SMTP_SERVER = 'smtp-mail.outlook.com'
+SMTP_PORT = 587
+OUTLOOK_USERNAME = '19031456@myrp.edu.sg'
+OUTLOOK_PASSWORD = '1995P@nyicun123'
+
+
 from guizero import App,Text,TextBox,PushButton,info,Picture,Window,ButtonGroup,Box
 from gpiozero import LED
 from gpiozero import Button
-from time import sleep
+import RPi.GPIO as GPIO
+import time
+
 
 def reportItem():
-    app.hide()
     windowReport.show()
+    window1.hide()
+    window.hide()
+    app.hide()
     
 def submitItem():
-    app.hide()
     window.show()
-    
-def retrieveItem():
+    window1.hide()
+    windowReport.hide()
     app.hide()
+
+def retrieveItem():
     window1.show()
-    
-def assignChute():
-    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
-                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
-    values = ("C",)
-    
-    getData.execute(locker_availability, values)
-    locker_record = getData.fetchone()
-    
-    locker_id = locker_record[0]
-    led = locker_record[4]
-    button = locker_record[3]
-    
+    window.hide()
+    windowReport.hide()
+    app.hide()
+
+
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
 
+def chute():
+    i = 0
+    info("","Please deposit item into chute")
+    try:
+        GPIO.setmode(GPIO.BCM)
+        TRIG=23
+        ECHO=24
+        b= False
+        GPIO.setup(TRIG,GPIO.OUT)
+        GPIO.setup(ECHO,GPIO.IN)
+        e = 0
+
+        while b == False:
+            GPIO.output(TRIG,False)
+            time.sleep(1.2)
+            GPIO.output(TRIG,True)
+            time.sleep(0.00001)
+            GPIO.output(TRIG,False)
+        
+            start =time.time()
+            while GPIO.input(ECHO)== 0:
+                start = time.time()
+            
+            while GPIO.input(ECHO)== 1:
+                stop = time.time()
+
+            elasped = stop-start
+            distance = elasped * 34300
+            distance = distance/2
+            print("Distance : %2.2f cm"%distance)
+            if distance<26 or distance>26.6:
+                i=i+1
+                if i>4:
+                    b=True
+                    info("","Thank You for Depositing Lost Item")
+            e=e+1
+            if e >15:
+                b=True
+                info("","Error, please head to counter for help")
+
+                
+    finally:
+        GPIO.cleanup()
 def confirm():
     check_uid = uid.value
     if check_uid =="":
@@ -69,7 +118,16 @@ def confirm():
                 
                     
             if locker_size_assigned == "C":
-                assignChute()
+                locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+                values = ("C",)
+                
+                getData.execute(locker_availability, values)
+                locker_record = getData.fetchone()
+                
+                locker_id = locker_record[0]
+                led = locker_record[4]
+                button = locker_record[3]
                 
             else:
                 j = True
@@ -95,7 +153,16 @@ def confirm():
                             
                             
                         else:
-                            assignChute()
+                            locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+                            values = ("C",)
+                            
+                            getData.execute(locker_availability, values)
+                            locker_record = getData.fetchone()
+                            
+                            locker_id = locker_record[0]
+                            led = locker_record[4]
+                            button = locker_record[3]
                             
                             j = False
                             break
@@ -126,7 +193,7 @@ def confirm():
             mydb.commit()
             
             if button == 0 and led == 0:
-                info("","Test")
+                chute()
             else:
                 button_gpio = Button(button)
                 lock_gpio = LED(led)
@@ -134,9 +201,10 @@ def confirm():
                 info("","Please deposit item into Locker")
                 button_gpio.wait_for_press()
                 lock_gpio.off()
+                info("","Thank You for Depositing Lost Item")
 
             
-            info("","Thank You for Depositing Lost Item")
+            
             
             now = datetime.datetime.now()
             
@@ -168,9 +236,19 @@ def confirm():
                     addItem2 = (rdmid2,id)                 
                     addData.execute(itemInfo2, addItem2)
                     mydb.commit()
-                    False
                     break
             
+            #Send email            
+            getEmail = "SELECT * FROM finder_information FI INNER JOIN item_information II ON FI.Finder_id = II.reported_user WHERE item_deposit_id = %s"
+            idsql = (check_uid,)
+            getData.execute(getEmail, idsql)
+            uInfo = getData.fetchall()
+            rEmail = uInfo[2]
+            sender = Emailer()
+            
+            emailSubject = "DO-NOT-REPLY"
+            emailContent = "Thank you for deposit the lost item at " + now  
+            sender.sendmail(rEmail, emailSubject, emailContent)
             
             
             
@@ -206,13 +284,18 @@ def retrieve():
             
             led = locker_record[4]
             button = locker_record[3]
-            button_gpio = Button(button) 
-            lock_gpio = LED(led)
-            lock_gpio.on()
-            info("","Please retrieve item from Locker " + str(locker_assigned))
-            button_gpio.wait_for_press()
-            lock_gpio.off()
             
+            if led == 0 or button == 0:
+                info("","Please head to counter to retrieve lost item")
+            else:
+                button_gpio = Button(button) 
+                lock_gpio = LED(led)
+                lock_gpio.on()
+                info("","Please retrieve item from Locker")
+                button_gpio.wait_for_press()
+                lock_gpio.off()
+                info("","Thank you for retrieving your lost item.")
+                
             
             
             update_locker = "UPDATE item_information SET Status = %s WHERE item_retrieve_id = %s "
@@ -233,8 +316,8 @@ def retrieve():
             updateData.execute(update_locker, locker_updated)
             mydb.commit()
             
-            info("","Thank You for Depositing Lost Item")
             
+            uid1.clear()
                         
                         
                 
@@ -315,9 +398,16 @@ def confirmReport():
         email.clear()
         location.clear()
         description.clear()
-        info("","Please Desposit Item into Locker or Bin")
+        info("","Report Successful. Please check your email for a 6 digit code.")
         
-    
+        
+        #Send email to inform user about their UID
+        sender = Emailer()
+        emailSubject = "DO-NOT-REPLY"
+        emailContent = "Thank you for reporting "+ chk_descrip + ",your 6 digit UID are " + rdmid + "!"
+        sender.sendmail(chk_email, emailSubject, emailContent)
+        
+        
 def Close():
     app.show()
     window.hide()
@@ -335,7 +425,9 @@ def Close():
 # GUI
 app = App("Lost and Found",height = 450,width = 800)
 picture = Picture(app,image="rplogo.png")
-Text(app, text = "Welcome to Lost and Found", size= 24,font = "Arial")
+Text(app, text = "Welcome to Lost and Found", size= 28,font = "Arial")
+Text(app)
+Text(app,text="Please select the service", size = 20)
 Text(app)
 #Buttons to report, submit, and retrieve button
 reportItem = PushButton(app,text = "Report lost item",height=1,width=20,command=reportItem)
@@ -345,38 +437,76 @@ submitItem.text_size = 16
 retrieveItem =PushButton(app,text = "Retrieve item",height=1,width=20,command=retrieveItem)
 retrieveItem.text_size = 16
 app.display
-
+app.full_screen = True
 
 
 
 #Form for Submit lost item
-window = Window(app, title= " ",height = 600,width = 800)
+window = Window(app, title= " ",height = 500,width = 900)
 window.hide()
 picture = Picture(window,image="rplogo.png")
-Text(window, text="Submit Lost Item",size=18)
+Text(window, text="Submit Lost Item",size=24)
 Text(window)
-Text(window, text = "Please enter ID",size = 14)
+Text(window, text = "Please enter ID",size = 16)
 uid = TextBox(window,width =20)
 uid.text_size=14
-Text(window)
+window.full_screen = True
+
 #Layout for buttons
 formBox = Box(window,layout="grid")
 PushButton(formBox,text = "Confirm",command=confirm, grid=[0,0]).text_size=14
 PushButton(formBox,text = "Close",command=Close, grid=[1,0]).text_size=14
 
-window1 = Window(app, title= " ",height = 600,width = 800)
+Text(window)
+
+formBoxInstruc = Box(window,layout="grid")
+Text(formBoxInstruc, grid=[0,0], text="How to use the locker:",size =14,align="left")
+Text(formBoxInstruc, grid=[0,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
+Text(formBoxInstruc, grid=[0,2], text="2. Click Confirm to submit ID",size =12,align="left")
+Text(formBoxInstruc, grid=[0,3], text="3. If successful, look for a locker with a powered LED",size =12,align="left")
+Text(formBoxInstruc, grid=[0,4], text="4. Click 'Ok' on the pop-up window before depositing item    ",size =12,align="left")
+Text(formBoxInstruc, grid=[0,5], text="5. Close the locker once item has been deposited",size =12,align="left")
+
+
+Text(formBoxInstruc, grid=[1,0], text="How to use the Chute:",size =14,align="left")
+Text(formBoxInstruc, grid=[1,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
+Text(formBoxInstruc, grid=[1,2], text="2. Click Confirm to submit ID",size =12,align="left")
+Text(formBoxInstruc, grid=[1,3], text="3. If successful, open the chute",size =12,align="left")
+Text(formBoxInstruc, grid=[1,4], text="4. Click 'Ok' on the pop-up window before depositing item",size =12,align="left")
+Text(formBoxInstruc, grid=[1,5], text="5. Close the chute once item has been deposited",size =12,align="left")
+
+
+window1 = Window(app, title= " ",height = 500,width = 900)
 window1.hide()
 picture = Picture(window1,image="rplogo.png")
-Text(window1,text="Retrieve Lost Item", size=18)
+Text(window1,text="Retrieve Lost Item", size=24)
 Text(window1)
-Text(window1, text = "Please enter ID",size = 14)
+Text(window1, text = "Please enter ID",size = 16)
 uid1 = TextBox(window1,width =20)
 uid1.text_size=14
-Text(window1)
+window1.full_screen=True
 #Layout for buttons
 formBoxRpt = Box(window1,layout="grid")
 PushButton(formBoxRpt,text = "Confirm",command=retrieve, grid=[0,0]).text_size=14
 PushButton(formBoxRpt,text = "Close",command=Close, grid=[1,0]).text_size=14
+
+Text(window1)
+
+formBoxInstruc = Box(window1,layout="grid")
+Text(formBoxInstruc, grid=[0,0], text="How to retrieve item from locker:",size =14,align="left")
+Text(formBoxInstruc, grid=[0,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
+Text(formBoxInstruc, grid=[0,2], text="2. Click Confirm to submit ID",size =12,align="left")
+Text(formBoxInstruc, grid=[0,3], text="3. If successful, look for a locker with a powered LED",size =12,align="left")
+Text(formBoxInstruc, grid=[0,4], text="4. Click 'Ok' on the pop-up window before retrieving item    ",size =12,align="left")
+Text(formBoxInstruc, grid=[0,5], text="5. Close the locker once item has been retrieved",size =12,align="left")
+
+
+Text(formBoxInstruc, grid=[1,0], text="How to item from Chute:",size =14,align="left")
+Text(formBoxInstruc, grid=[1,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
+Text(formBoxInstruc, grid=[1,2], text="2. Click Confirm to submit ID",size =12,align="left")
+Text(formBoxInstruc, grid=[1,3], text="3. If successful, follow instructions on the ",size =12,align="left")
+Text(formBoxInstruc, grid=[1,4], text="    pop-up window to retrieve item",size =12,align="left")
+
 
 #Form for reporting lost item
 windowReport = Window(app, title= " ",height = 600,width = 800)
@@ -397,20 +527,17 @@ Text(formBox1, grid=[0,2],text="Locker Size",size =14)
 choice = ButtonGroup(formBox1,
             options=["Small", "Medium", "Large","Chute"],
             selected="Small",grid=[1,2],align="left" )
-choice.text_size=14
+choice.text_size=12
 
-Text(formBox1, grid=[0,3],text="Item Description",size =14)
+Text(formBox1, grid=[0,3],text="Item Description*",size =14)
 description = TextBox(formBox1, grid=[1,3],width=20)
 description.text_size=14
-Text(formBox1, grid=[0,4],text="Location Found",size =14)
+Text(formBox1, grid=[0,4],text="Location Found*",size =14)
 location = TextBox(formBox1, grid=[1,4],width=20)
 location.text_size=14
 Text(windowReport)
+windowReport.full_screen=True
 #Layout for buttons
 formBox2 = Box(windowReport,layout="grid")
 PushButton(formBox2,text = "Confirm",command=confirmReport, grid=[0,0])
 PushButton(formBox2,text = "Close",command=Close, grid=[1,0])
-
-
-
-
