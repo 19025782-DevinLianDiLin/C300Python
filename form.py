@@ -17,37 +17,16 @@ getData = mydb.cursor()
 updateData = mydb.cursor()
 addData = mydb.cursor()
 
-#Information:server,port number,email username,email password
-SMTP_SERVER = 'smtp-mail.outlook.com'
-SMTP_PORT = 587
-OUTLOOK_USERNAME = '19031456@myrp.edu.sg'
-OUTLOOK_PASSWORD = '1995P@nyicun123'
 
 
-from guizero import App,Text,TextBox,PushButton,info,Picture,Window,ButtonGroup,Box
+from guizero import App,Text,TextBox,PushButton,info,error,warn,Picture,Window,ButtonGroup,Box
 from gpiozero import LED
 from gpiozero import Button
 import RPi.GPIO as GPIO
 import time
 
 
-def reportItem():
-    windowReport.show()
-    window1.hide()
-    window.hide()
-    app.hide()
-    
-def submitItem():
-    window.show()
-    window1.hide()
-    windowReport.hide()
-    app.hide()
 
-def retrieveItem():
-    window1.show()
-    window.hide()
-    windowReport.hide()
-    app.hide()
 
 
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
@@ -65,14 +44,13 @@ def chute():
         GPIO.setup(TRIG,GPIO.OUT)
         GPIO.setup(ECHO,GPIO.IN)
         e = 0
-
         while b == False:
             GPIO.output(TRIG,False)
             time.sleep(1.2)
             GPIO.output(TRIG,True)
             time.sleep(0.00001)
             GPIO.output(TRIG,False)
-        
+            
             start =time.time()
             while GPIO.input(ECHO)== 0:
                 start = time.time()
@@ -84,23 +62,28 @@ def chute():
             distance = elasped * 34300
             distance = distance/2
             print("Distance : %2.2f cm"%distance)
-            if distance<26 or distance>26.6:
+            if distance<26.5 or distance>26.7:
                 i=i+1
-                if i>4:
+                if i>3:
                     b=True
                     info("","Thank You for Depositing Lost Item")
+                    
             e=e+1
-            if e >15:
+            if e >9:
                 b=True
-                info("","Error, please head to counter for help")
+                error("","Error, please head to counter for help")
+                
 
                 
     finally:
         GPIO.cleanup()
+        
+        
+        
 def confirm():
     check_uid = uid.value
     if check_uid =="":
-        info("", "Please enter ID")
+        warn("", "Please enter ID")
         
     else:      
         number_of_row = "SELECT * FROM item_information WHERE Locker_Assigned IS NULL AND item_deposit_id = %s "
@@ -110,10 +93,11 @@ def confirm():
         record = getData.fetchall()
         
         if record == []:
-            info("","Invalid ID")
+            warn("","Invalid ID")
         else:
             for row in record:
                 id = row[0]
+                user = row[11]
                 locker_size_assigned = row[5]
                 
                     
@@ -180,11 +164,6 @@ def confirm():
                         break
                     
             uid.clear()
-            update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
-            locker_updated = ("NA", locker_id)
-            updateData.execute(update_locker, locker_updated)
-            mydb.commit()
-
             
             update_locker = "UPDATE item_information SET Locker_Assigned = %s WHERE item_deposit_id = %s "
             locker_updated = (locker_id, check_uid)
@@ -201,10 +180,7 @@ def confirm():
                 info("","Please deposit item into Locker")
                 button_gpio.wait_for_press()
                 lock_gpio.off()
-                info("","Thank You for Depositing Lost Item")
-
-            
-            
+                info("","Thank You for Depositing Lost Item")           
             
             now = datetime.datetime.now()
             
@@ -219,6 +195,15 @@ def confirm():
             locker_updated = (now,check_uid)
             updateData.execute(update_locker, locker_updated)
             mydb.commit()
+            
+            if locker_size_assigned != "C":
+                
+                update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+                locker_updated = ("NA", locker_id)
+                updateData.execute(update_locker, locker_updated)
+                mydb.commit()
+                
+            
             
             while True:
                 rdmid2 = id_generator(6, "QWERTYUIOPASDFGHJKLZXCVBNM123456789")
@@ -236,26 +221,39 @@ def confirm():
                     addItem2 = (rdmid2,id)                 
                     addData.execute(itemInfo2, addItem2)
                     mydb.commit()
+                    
+                    
+                    #Send email to inform user they sucessfully deposit the lost item
+                    getUser = "SELECT * FROM finder_information WHERE finder_id = %s "
+                    u_Info = (user, )
+                    getData.execute(getUser, u_Info)
+                    finder_info = getData.fetchone()
+                    for row in finder_info:
+                        email2 = str(finder_info[2])
+                        break
+                    
+                    sender = Emailer()
+                    
+                    emailSubject = "RP-DO-NOT-REPLY"
+                    emailContent = "Thank you for deposit the lost item at " + str(now) + " "
+                    sender.sendmail(email2, emailSubject, emailContent)
+                    
+                    
                     break
+                
+                    
+                
+                
             
-            #Send email            
-            getEmail = "SELECT * FROM finder_information FI INNER JOIN item_information II ON FI.Finder_id = II.reported_user WHERE item_deposit_id = %s"
-            idsql = (check_uid,)
-            getData.execute(getEmail, idsql)
-            uInfo = getData.fetchall()
-            rEmail = uInfo[2]
-            sender = Emailer()
-            
-            emailSubject = "DO-NOT-REPLY"
-            emailContent = "Thank you for deposit the lost item at " + now  
-            sender.sendmail(rEmail, emailSubject, emailContent)
+                
+                
             
             
             
 def retrieve():
     check_uid = uid1.value
     if check_uid =="":
-        info("", "Please enter ID")
+        warn("", "Please enter ID")
         
     
         
@@ -294,6 +292,7 @@ def retrieve():
                 info("","Please retrieve item from Locker")
                 button_gpio.wait_for_press()
                 lock_gpio.off()
+                
                 info("","Thank you for retrieving your lost item.")
                 
             
@@ -323,7 +322,7 @@ def retrieve():
                 
 
         else:
-            info("","ID is Wrong, Please Try Again ")
+            warn("","ID is Wrong, Please Try Again ")
             
                         
 
@@ -343,7 +342,7 @@ def confirmReport():
     chk_descrip = description.value
     chk_location = location.value
     if chk_name=="" or chk_email=="" or chk_descrip == "" or chk_location =="":
-        info("", "Please enter your name, email, item description, and location found")
+        warn("", "Please enter your name, email, item description, and location found")
         
     else:
         if choice.value == "Small":
@@ -403,15 +402,15 @@ def confirmReport():
         
         #Send email to inform user about their UID
         sender = Emailer()
-        emailSubject = "DO-NOT-REPLY"
-        emailContent = "Thank you for reporting "+ chk_descrip + ",your 6 digit UID are " + rdmid + "!"
+        emailSubject = "RP-DO-NOT-REPLY"
+        emailContent = "Thank you for reporting lost item: "+ chk_descrip + ", your 6 digit ID is " + rdmid + "."
         sender.sendmail(chk_email, emailSubject, emailContent)
         
         
 def Close():
     app.show()
     window.hide()
-    window1.hide()
+    retrieveWindow.hide()
     uid.clear()
     uid1.clear()
     windowReport.hide()
@@ -420,7 +419,23 @@ def Close():
     location.clear()
     description.clear()
     
+def reportItem():
+    windowReport.show()
+    retrieveWindow.hide()
+    window.hide()
+    app.hide()
     
+def submitItem():
+    window.show()
+    retrieveWindow.hide()
+    windowReport.hide()
+    app.hide()
+
+def retrieveItem():
+    retrieveWindow.show()
+    window.hide()
+    windowReport.hide()
+    app.hide()    
     
 # GUI
 app = App("Lost and Found",height = 450,width = 800)
@@ -476,23 +491,23 @@ Text(formBoxInstruc, grid=[1,4], text="4. Click 'Ok' on the pop-up window before
 Text(formBoxInstruc, grid=[1,5], text="5. Close the chute once item has been deposited",size =12,align="left")
 
 
-window1 = Window(app, title= " ",height = 500,width = 900)
-window1.hide()
-picture = Picture(window1,image="rplogo.png")
-Text(window1,text="Retrieve Lost Item", size=24)
-Text(window1)
-Text(window1, text = "Please enter ID",size = 16)
-uid1 = TextBox(window1,width =20)
+retrieveWindow = Window(app, title= " ",height = 500,width = 900)
+retrieveWindow.hide()
+picture = Picture(retrieveWindow,image="rplogo.png")
+Text(retrieveWindow,text="Retrieve Lost Item", size=24)
+Text(retrieveWindow)
+Text(retrieveWindow, text = "Please enter ID",size = 16)
+uid1 = TextBox(retrieveWindow,width =20)
 uid1.text_size=14
-window1.full_screen=True
+retrieveWindow.full_screen=True
 #Layout for buttons
-formBoxRpt = Box(window1,layout="grid")
-PushButton(formBoxRpt,text = "Confirm",command=retrieve, grid=[0,0]).text_size=14
-PushButton(formBoxRpt,text = "Close",command=Close, grid=[1,0]).text_size=14
+formboxRtv = Box(retrieveWindow,layout="grid")
+PushButton(formboxRtv,text = "Confirm",command=retrieve, grid=[0,0]).text_size=14
+PushButton(formboxRtv,text = "Close",command=Close, grid=[1,0]).text_size=14
 
-Text(window1)
+Text(retrieveWindow)
 
-formBoxInstruc = Box(window1,layout="grid")
+formBoxInstruc = Box(retrieveWindow,layout="grid")
 Text(formBoxInstruc, grid=[0,0], text="How to retrieve item from locker:",size =14,align="left")
 Text(formBoxInstruc, grid=[0,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
 Text(formBoxInstruc, grid=[0,2], text="2. Click Confirm to submit ID",size =12,align="left")
@@ -538,6 +553,13 @@ location.text_size=14
 Text(windowReport)
 windowReport.full_screen=True
 #Layout for buttons
-formBox2 = Box(windowReport,layout="grid")
-PushButton(formBox2,text = "Confirm",command=confirmReport, grid=[0,0])
-PushButton(formBox2,text = "Close",command=Close, grid=[1,0])
+formboxRpt = Box(windowReport,layout="grid")
+PushButton(formboxRpt,text = "Confirm",command=confirmReport, grid=[0,0])
+PushButton(formboxRpt,text = "Close",command=Close, grid=[1,0])
+
+Text(windowReport)
+
+Text(windowReport,text="Please provide accurate details for item description and location found", size =14)
+
+
+
