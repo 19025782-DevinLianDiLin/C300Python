@@ -166,7 +166,32 @@ def confirm():
             updateData.execute(update_locker, locker_updated)
             mydb.commit()
             
+            # Part Where Locker Open/Closes , Chute to be used 
+            if button == 0 and led == 0:
+                chute()
+            else:
+                button_gpio = Button(button)
+                lock_gpio = LED(led)
+                lock_gpio.on()
+                info("","Please deposit item into Locker")
+                button_gpio.wait_for_press()
+                lock_gpio.off()
+                info("","Thank You for Depositing Lost Item")           
             
+            now = datetime.datetime.now()
+            
+            # Update SQL Fields
+            
+            update_locker = "UPDATE item_information SET Status = %s WHERE item_deposit_id = %s"
+            locker_updated = ('DP',check_uid)
+            updateData.execute(update_locker, locker_updated)
+            mydb.commit()
+            
+            
+            update_locker = "UPDATE item_information SET Time_Deposited = %s WHERE item_deposit_id = %s"
+            locker_updated = (now,check_uid)
+            updateData.execute(update_locker, locker_updated)
+            mydb.commit()
             
             
             
@@ -248,8 +273,31 @@ def retrieve():
             led = locker_record[4]
             button = locker_record[3]
             
-            
-            update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+            # Part Where Locker Open/Closes , Inform user to head to counter if item was deposited via the chute
+            if led == 0 or button == 0:
+                info("","Please head to counter to retrieve lost item")
+            else:
+                button_gpio = Button(button) 
+                lock_gpio = LED(led)
+                lock_gpio.on()
+                info("","Please retrieve item from Locker")
+                button_gpio.wait_for_press()
+                lock_gpio.off()
+                
+                #Update SQL fields 
+                update_locker = "UPDATE item_information SET Status = %s WHERE item_retrieve_id = %s "
+                locker_updated = ('RT', check_uid)
+                updateData.execute(update_locker, locker_updated)
+                mydb.commit()
+
+                
+                now = datetime.datetime.now()
+                update_locker = "UPDATE item_information SET Time_Retrieved = %s WHERE item_retrieve_id = %s "
+                locker_updated = (now, check_uid)
+                updateData.execute(update_locker, locker_updated)
+                mydb.commit()
+                
+                update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
                 locker_updated = ('A', locker_assigned)
                 updateData.execute(update_locker, locker_updated)
                 mydb.commit()
