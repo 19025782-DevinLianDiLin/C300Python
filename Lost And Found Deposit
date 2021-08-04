@@ -1,3 +1,22 @@
+import mysql.connector
+import string
+import random
+import datetime
+import smtplib
+from Email import Emailer
+
+#Connect to SQL 
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password ="password", 
+    database="c300"
+    
+)
+
+getData = mydb.cursor()
+updateData = mydb.cursor()
+addData = mydb.cursor()
 
 #import 
 from guizero import App,Text,TextBox,PushButton,info,error,warn,Picture,Window,ButtonGroup,Box
@@ -5,6 +24,9 @@ from gpiozero import LED
 from gpiozero import Button
 import RPi.GPIO as GPIO
 
+
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
 
 # Code to Activate the Chute 
 def chute():
@@ -51,6 +73,272 @@ def chute():
                 
     finally:
         GPIO.cleanup()
+def confirm():
+    check_uid = uid.value
+    if check_uid =="":
+        warn("", "Please enter ID")
+    # To check if Id exist     
+    else:      
+        number_of_row = "SELECT * FROM item_information WHERE Status = %s AND item_deposit_id = %s "
+        
+        idsql = ('RP', check_uid)
+        getData.execute(number_of_row, idsql)
+        
+        record = getData.fetchall()
+        
+        if record == []:
+            warn("","Invalid ID")
+        else:
+            for row in record:
+                id = row[0]
+                user = row[11]
+                locker_size_assigned = row[5]
+                
+        # Assign to Chute if Size_Assigned = Chute             
+            if locker_size_assigned == "C":
+                locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+                values = ("C",)
+                
+                getData.execute(locker_availability, values)
+                locker_record = getData.fetchone()
+                
+                locker_id = locker_record[0]
+                led = locker_record[4]
+                button = locker_record[3]
+                
+            else:
+                j = True
+                while j:
+                    
+                    # Assign locker based on locker available
+                    locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                          "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+                    values = (locker_size_assigned,)
+                    
+                    getData.execute(locker_availability, values)
+                    locker_record = getData.fetchone()
+                    alchecker = getData.rowcount
+                    
+                    if alchecker == -1:
+                        if locker_size_assigned == "S":
+                            locker_size_assigned = "M"
+                            continue
+                            
+                        elif locker_size_assigned == "M":
+                            locker_size_assigned = "L"
+                            continue
+                            
+                            
+                        else:
+                            locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
+                                  "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
+                            values = ("C",)
+                            
+                            getData.execute(locker_availability, values)
+                            locker_record = getData.fetchone()
+                            
+                            locker_id = locker_record[0]
+                            led = locker_record[4]
+                            button = locker_record[3]
+                            
+                            j = False
+                            break
+                            
+                        
+                        
+                    else:                        
+                        getData.execute(locker_availability, values)
+                        locker_record = getData.fetchone()
+                        locker_id = locker_record[0]
+                        led = locker_record[4]
+                        button = locker_record[3]
+                        
+                        j = False
+                        break
+                    
+            uid.clear()
+            # Update SQL Fields 
+            update_locker = "UPDATE item_information SET Locker_Assigned = %s WHERE item_deposit_id = %s "
+            locker_updated = (locker_id, check_uid)
+
+            updateData.execute(update_locker, locker_updated)
+            mydb.commit()
+            
+            
+            
+             # Chute should be Available / Locker Should not be available
+            if locker_size_assigned != "C":
+                
+                update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+                locker_updated = ("NA", locker_id)
+                updateData.execute(update_locker, locker_updated)
+                mydb.commit()
+                
+            
+            # ID generator for Retrieve ID 
+            while True:
+                rdmid2 = id_generator(6, "QWERTYUIOPASDFGHJKLZXCVBNM123456789")
+            
+                rIdChecker = "SELECT * FROM item_information WHERE Item_Retrieve_Id = %s "
+                rValues = (rdmid2,)
+                getData.execute(rIdChecker, rValues)
+                rLocker_record = getData.fetchall()
+                rChecker = getData.rowcount
+                
+                if rChecker == 1:
+                    continue
+                else:
+                    itemInfo2 = "UPDATE item_information SET Item_Retrieve_ID = %s WHERE id = %s"
+                    addItem2 = (rdmid2,id)                 
+                    addData.execute(itemInfo2, addItem2)
+                    mydb.commit()
+                    
+                    
+                    #Send email to inform user they sucessfully deposit the lost item
+                    getUser = "SELECT * FROM finder_information WHERE finder_id = %s "
+                    u_Info = (user, )
+                    getData.execute(getUser, u_Info)
+                    finder_info = getData.fetchone()
+                    
+                    email2 = str(finder_info[2])
+                        
+                    
+                    sender = Emailer()
+                    
+                    emailSubject = "RP-DO-NOT-REPLY"
+                    emailContent = "Thank you for deposit the lost item at " + str(now) + " "
+                    sender.sendmail(email2, emailSubject, emailContent)
+                    
+                    
+                    break
+                
+def retrieve():
+    check_uid = uid1.value
+    if check_uid =="":
+        warn("", "Please enter ID")
+        
+    
+    # To check if ID exist     
+    else:
+        IdCheckSQL = "SELECT * FROM item_information WHERE Status = %s AND Item_Retrieve_Id = %s"
+        IdCheckSQLVar = ('DP', check_uid)
+        getData.execute(IdCheckSQL, IdCheckSQLVar)
+        IdCheckSQLResult = getData.fetchone()
+        IdChecker = getData.rowcount
+
+        if IdChecker == 1:
+            
+            getData.execute(IdCheckSQL, IdCheckSQLVar)
+            IdCheckSQLResult = getData.fetchone()
+                    
+            locker_assigned = IdCheckSQLResult[10]
+                
+            # pull the information to what locker it was assigned to 
+            lockerinfo = "SELECT * FROM locker WHERE locker_id = %s"
+            lockerinfovar = (locker_assigned,)
+            getData.execute(lockerinfo, lockerinfovar)
+            locker_record = getData.fetchone()
+            
+            led = locker_record[4]
+            button = locker_record[3]
+            
+            
+            update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+                locker_updated = ('A', locker_assigned)
+                updateData.execute(update_locker, locker_updated)
+                mydb.commit()
+                
+                info("","Thank you for retrieving your lost item.")
+                
+            
+            
+            
+            uid1.clear()
+                        
+                        
+                
+
+        else:
+            warn("","ID is Wrong, Please Try Again ")
+            
+ def Check():
+    getFinder = "SELECT * FROM finder_information WHERE finder_name = %s AND finder_email = %s "
+    Find = (name.value, email.value)
+    getData.execute(getFinder, Find)
+
+    
+        
+def confirmReport():
+    
+    chk_name = name.value
+    chk_email = email.value
+    chk_descrip = description.value
+    chk_location = location.value
+    if chk_name=="" or chk_email=="" or chk_descrip == "" or chk_location =="":
+        warn("", "Please enter your name, email, item description, and location found")
+        
+    #Assign Locker Size     
+    else:
+        if choice.value == "Small":
+            size = "S"
+        elif choice.value == "Medium":
+            size = "M"
+        elif choice.value == "Large":
+            size = "L"
+        else:
+            size = "C"
+            
+        # Generate Deposit ID 
+        while True:
+            rdmid = id_generator(6, "QWERTYUIOPASDFGHJKLZXCVBNM123456789")
+            
+            rIdChecker = "SELECT * FROM item_information WHERE item_deposit_id = %s "
+            rValues = (rdmid,)
+            getData.execute(rIdChecker, rValues)
+            rLocker_record = getData.fetchall()
+            rChecker = getData.rowcount
+            
+            if rChecker == 1:
+                continue
+            else:
+                # Check if user Exist 
+                Check()
+                fInfo = getData.fetchall()
+                fInfoCheck = getData.rowcount
+                
+                if fInfoCheck == 1:
+                    for row in fInfo:
+                        sql_id =row[0]
+                    itemInfo = "INSERT INTO item_information (item_deposit_id, item_description,item_Last_Found,Locker_Size_Assigned,status, reported_user ) VALUES (%s,%s,%s,%s,%s,%s)"
+                    addItem = (rdmid, chk_descrip, chk_location, size, "RP", sql_id)                 
+                    addData.execute(itemInfo, addItem)
+                    mydb.commit()
+                       
+                else:
+                    addFind = "INSERT INTO finder_information (finder_name, finder_email) VALUES (%s, %s)"
+                    valFind = (chk_name, chk_email)
+                    addData.execute(addFind, valFind)
+                    mydb.commit()
+                    Check()
+                    getId = addData.fetchall()
+                    for row in getId:
+                        sql_id =row[0]
+                    itemInfo = "INSERT INTO item_information (item_deposit_id, item_description,item_Last_Found,Locker_Size_Assigned,status, reported_user ) VALUES (%s,%s,%s,%s,%s,%s)"
+                    addItem = (rdmid, chk_descrip, chk_location, size, "RP", sql_id)                 
+                    addData.execute(itemInfo, addItem)
+                    mydb.commit()
+            break
+        name.clear()
+        email.clear()
+        location.clear()
+        description.clear()
+        info("","Report Successful. Please check your email for a 6 digit code.")
+    
+            
+            
+            
+            
 
 def Close():
     app.show()
