@@ -3,6 +3,7 @@ import string
 import random
 import datetime
 import smtplib
+
 from Email import Emailer
 
 #Connect to SQL 
@@ -167,6 +168,11 @@ def confirm():
             
             
             
+            
+            
+            
+            
+            
              # Chute should be Available / Locker Should not be available
             if locker_size_assigned != "C":
                 
@@ -194,7 +200,6 @@ def confirm():
                     addData.execute(itemInfo2, addItem2)
                     mydb.commit()
                     
-                    
                     #Send email to inform user they sucessfully deposit the lost item
                     getUser = "SELECT * FROM finder_information WHERE finder_id = %s "
                     u_Info = (user, )
@@ -209,9 +214,9 @@ def confirm():
                     emailSubject = "RP-DO-NOT-REPLY"
                     emailContent = "Thank you for deposit the lost item at " + str(now) + " "
                     sender.sendmail(email2, emailSubject, emailContent)
-                    
-                    
                     break
+                    
+                   
                 
 def retrieve():
     check_uid = uid1.value
@@ -335,7 +340,12 @@ def confirmReport():
         description.clear()
         info("","Report Successful. Please check your email for a 6 digit code.")
     
-            
+         #Send email to inform user about their UID
+        sender = Emailer()
+        emailSubject = "RP-DO-NOT-REPLY"
+        emailContent = "Thank you for reporting lost item: "+ chk_descrip + ", your 6 digit ID is " + rdmid + "."
+        sender.sendmail(chk_email, emailSubject, emailContent)
+           
             
             
             
