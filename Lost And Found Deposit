@@ -1,0 +1,220 @@
+
+#import 
+from guizero import App,Text,TextBox,PushButton,info,error,warn,Picture,Window,ButtonGroup,Box
+from gpiozero import LED
+from gpiozero import Button
+import RPi.GPIO as GPIO
+
+
+# Code to Activate the Chute 
+def chute():
+    i = 0
+    info("","Please deposit item into chute")
+    try:
+        GPIO.setmode(GPIO.BCM)
+        TRIG=23
+        ECHO=24
+        b= False
+        GPIO.setup(TRIG,GPIO.OUT)
+        GPIO.setup(ECHO,GPIO.IN)
+        e = 0
+        while b == False:
+            GPIO.output(TRIG,False)
+            time.sleep(1.2)
+            GPIO.output(TRIG,True)
+            time.sleep(0.00001)
+            GPIO.output(TRIG,False)
+            
+            start =time.time()
+            while GPIO.input(ECHO)== 0:
+                start = time.time()
+            
+            while GPIO.input(ECHO)== 1:
+                stop = time.time()
+
+            elasped = stop-start
+            distance = elasped * 34300
+            distance = distance/2
+            print("Distance : %2.2f cm"%distance)
+            if distance<26 or distance>27:
+                i=i+1
+                if i>3:
+                    b=True
+                    info("","Thank You for Depositing Lost Item")
+                    
+            e=e+1
+            if e >20:
+                b=True
+                error("","Error, please head to counter for help")
+                
+
+                
+    finally:
+        GPIO.cleanup()
+
+def Close():
+    app.show()
+    window.hide()
+    retrieveWindow.hide()
+    uid.clear()
+    uid1.clear()
+    windowReport.hide()
+    name.clear()
+    email.clear()
+    location.clear()
+    description.clear()
+    
+def reportItem():
+    windowReport.show()
+    retrieveWindow.hide()
+    window.hide()
+    app.hide()
+    
+def submitItem():
+    window.show()
+    retrieveWindow.hide()
+    windowReport.hide()
+    app.hide()
+
+def retrieveItem():
+    retrieveWindow.show()
+    window.hide()
+    windowReport.hide()
+    app.hide()    
+    
+# GUI
+app = App("Lost and Found",height = 450,width = 800)
+picture = Picture(app,image="rplogo.png")
+Text(app, text = "Welcome to Lost and Found", size= 28,font = "Arial")
+Text(app)
+Text(app,text="Please select the service", size = 20)
+Text(app)
+#Buttons to report, submit, and retrieve button
+reportItem = PushButton(app,text = "Report lost item",height=1,width=20,command=reportItem)
+reportItem.text_size = 16
+submitItem = PushButton(app,text = "Submit lost item",height=1,width=20,command=submitItem)
+submitItem.text_size = 16
+retrieveItem =PushButton(app,text = "Retrieve item",height=1,width=20,command=retrieveItem)
+retrieveItem.text_size = 16
+#Display in full screen
+app.display
+app.full_screen = True
+
+
+
+#Form for Submit lost item
+window = Window(app, title= " ",height = 500,width = 900)
+window.hide()
+picture = Picture(window,image="rplogo.png")
+Text(window, text="Submit Lost Item",size=24)
+Text(window)
+Text(window, text = "Please enter ID",size = 16)
+uid = TextBox(window,width =20)
+uid.text_size=14
+window.full_screen = True
+
+#Layout for buttons
+formBox = Box(window,layout="grid")
+PushButton(formBox,text = "Confirm",command=confirm, grid=[0,0]).text_size=14
+PushButton(formBox,text = "Close",command=Close, grid=[1,0]).text_size=14
+
+#Spacing
+Text(window)
+
+#Instructions for on how to use locker
+formBoxInstruc = Box(window,layout="grid")
+Text(formBoxInstruc, grid=[0,0], text="How to use the locker:",size =14,align="left")
+Text(formBoxInstruc, grid=[0,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
+Text(formBoxInstruc, grid=[0,2], text="2. Click Confirm to submit ID",size =12,align="left")
+Text(formBoxInstruc, grid=[0,3], text="3. If successful, look for a locker with a powered LED",size =12,align="left")
+Text(formBoxInstruc, grid=[0,4], text="4. Click 'Ok' on the pop-up window before depositing item    ",size =12,align="left")
+Text(formBoxInstruc, grid=[0,5], text="5. Close the locker once item has been deposited",size =12,align="left")
+
+#Instructions for on how to use chute
+Text(formBoxInstruc, grid=[1,0], text="How to use the Chute:",size =14,align="left")
+Text(formBoxInstruc, grid=[1,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
+Text(formBoxInstruc, grid=[1,2], text="2. Click Confirm to submit ID",size =12,align="left")
+Text(formBoxInstruc, grid=[1,3], text="3. If successful, open the chute",size =12,align="left")
+Text(formBoxInstruc, grid=[1,4], text="4. Click 'Ok' on the pop-up window before depositing item",size =12,align="left")
+Text(formBoxInstruc, grid=[1,5], text="5. Close the chute once item has been deposited",size =12,align="left")
+
+#Form for retrieve lost item
+retrieveWindow = Window(app, title= " ",height = 500,width = 900)
+retrieveWindow.hide()
+picture = Picture(retrieveWindow,image="rplogo.png")
+Text(retrieveWindow,text="Retrieve Lost Item", size=24)
+Text(retrieveWindow)
+Text(retrieveWindow, text = "Please enter ID",size = 16)
+uid1 = TextBox(retrieveWindow,width =20)
+uid1.text_size=14
+retrieveWindow.full_screen=True
+
+#Layout for buttons
+formboxRtv = Box(retrieveWindow,layout="grid")
+PushButton(formboxRtv,text = "Confirm",command=retrieve, grid=[0,0]).text_size=14
+PushButton(formboxRtv,text = "Close",command=Close, grid=[1,0]).text_size=14
+
+#Spacing
+Text(retrieveWindow)
+
+#Instructions for on how to use locker
+formBoxInstruc = Box(retrieveWindow,layout="grid")
+Text(formBoxInstruc, grid=[0,0], text="How to retrieve item from locker:",size =14,align="left")
+Text(formBoxInstruc, grid=[0,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
+Text(formBoxInstruc, grid=[0,2], text="2. Click Confirm to submit ID",size =12,align="left")
+Text(formBoxInstruc, grid=[0,3], text="3. If successful, look for a locker with a powered LED",size =12,align="left")
+Text(formBoxInstruc, grid=[0,4], text="4. Click 'Ok' on the pop-up window before retrieving item    ",size =12,align="left")
+Text(formBoxInstruc, grid=[0,5], text="5. Close the locker once item has been retrieved",size =12,align="left")
+
+#Instructions for on how to use chute
+Text(formBoxInstruc, grid=[1,0], text="How to item from Chute:",size =14,align="left")
+Text(formBoxInstruc, grid=[1,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
+Text(formBoxInstruc, grid=[1,2], text="2. Click Confirm to submit ID",size =12,align="left")
+Text(formBoxInstruc, grid=[1,3], text="3. If successful, follow instructions on the ",size =12,align="left")
+Text(formBoxInstruc, grid=[1,4], text="    pop-up window to retrieve item",size =12,align="left")
+
+
+#Form for reporting lost item
+windowReport = Window(app, title= " ",height = 600,width = 800)
+windowReport.hide()
+picture = Picture(windowReport,image="rplogo.png")
+message1 = Text(windowReport, text="Please enter item details",font="Arial",size=20)
+Text(windowReport)
+
+#Layout for user to enter item details to report lost item
+formboxDetails = Box(windowReport,layout="grid")
+Text(formboxDetails, grid=[0,0],text="Name*",size =14)
+name = TextBox(formboxDetails, grid=[1,0],width=20)
+name.text_size=14
+Text(formboxDetails, grid=[0,1], text="Email*",size =14)
+email = TextBox(formboxDetails, grid=[1,1],width=20)
+email.text_size=14
+
+Text(formboxDetails, grid=[0,2],text="Locker Size",size =14)
+choice = ButtonGroup(formboxDetails,
+            options=["Small", "Medium", "Large","Chute"],
+            selected="Small",grid=[1,2],align="left" )
+choice.text_size=12
+
+Text(formboxDetails, grid=[0,3],text="Item Description*",size =14)
+description = TextBox(formboxDetails, grid=[1,3],width=20)
+description.text_size=14
+Text(formboxDetails, grid=[0,4],text="Location Found*",size =14)
+location = TextBox(formboxDetails, grid=[1,4],width=20)
+location.text_size=14
+Text(windowReport)
+windowReport.full_screen=True
+
+#Layout for buttons
+formboxRpt = Box(windowReport,layout="grid")
+PushButton(formboxRpt,text = "Confirm",command=confirmReport, grid=[0,0])
+PushButton(formboxRpt,text = "Close",command=Close, grid=[1,0])
+
+#Spacing
+Text(windowReport)
+
+#Text to tell user to provide accurate information
+Text(windowReport,text="Please provide accurate details for item description and location found", size =14)
+        
+        
+        
