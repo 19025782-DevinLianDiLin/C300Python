@@ -1,0 +1,28 @@
+import smtplib
+
+
+SMTP_SERVER = 'smtp-mail.outlook.com'
+SMTP_PORT = 587
+OUTLOOK_USERNAME = 'USERNAME'
+OUTLOOK_PASSWORD = 'userpassword'
+
+
+class Emailer:
+    def sendmail(self, recipient, subject, content):
+        headers = ["From: " + OUTLOOK_USERNAME, "Subject: " + subject, "To: " + recipient,
+                   "MIME-Version: 1.0", "Content-Type: text/html"]
+        headers = "\r\n".join(headers)
+ 
+        #Connect to Outlook Server
+        session = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        session.ehlo()
+        session.starttls()
+        session.ehlo()
+ 
+        #Login to Outlook
+        session.login(OUTLOOK_USERNAME, OUTLOOK_PASSWORD)
+ 
+        #Send Email & Exit
+        session.sendmail(OUTLOOK_USERNAME, recipient, headers + "\r\n\r\n" + content)
+        session.quit
+        
