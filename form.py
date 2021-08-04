@@ -5,6 +5,7 @@ import datetime
 import smtplib
 from Email import Emailer
 
+#Connect to SQL 
 mydb = mysql.connector.connect(
     host="localhost",
     user="root",
@@ -26,13 +27,10 @@ import RPi.GPIO as GPIO
 import time
 
 
-
-
-
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
-
+# Code to Activate the Chute 
 def chute():
     i = 0
     info("","Please deposit item into chute")
@@ -62,14 +60,14 @@ def chute():
             distance = elasped * 34300
             distance = distance/2
             print("Distance : %2.2f cm"%distance)
-            if distance<26.5 or distance>26.7:
+            if distance<26 or distance>27:
                 i=i+1
                 if i>3:
                     b=True
                     info("","Thank You for Depositing Lost Item")
                     
             e=e+1
-            if e >9:
+            if e >20:
                 b=True
                 error("","Error, please head to counter for help")
                 
@@ -84,12 +82,13 @@ def confirm():
     check_uid = uid.value
     if check_uid =="":
         warn("", "Please enter ID")
-        
+    # To check if Id exist     
     else:      
-        number_of_row = "SELECT * FROM item_information WHERE Locker_Assigned IS NULL AND item_deposit_id = %s "
+        number_of_row = "SELECT * FROM item_information WHERE Status = %s AND item_deposit_id = %s "
         
-        idsql = (check_uid,)
+        idsql = ('RP', check_uid)
         getData.execute(number_of_row, idsql)
+        
         record = getData.fetchall()
         
         if record == []:
@@ -100,7 +99,7 @@ def confirm():
                 user = row[11]
                 locker_size_assigned = row[5]
                 
-                    
+        # Assign to Chute if Size_Assigned = Chute             
             if locker_size_assigned == "C":
                 locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
                                   "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
@@ -117,7 +116,7 @@ def confirm():
                 j = True
                 while j:
                     
-                    
+                    # Assign locker based on locker available
                     locker_availability = "SELECT * FROM locker WHERE LOCKER_STATUS = 'A' " \
                                           "AND LOCKER_SIZE = %s ORDER BY LOCKER_ID ASC LIMIT 0, 1 "
                     values = (locker_size_assigned,)
@@ -164,13 +163,14 @@ def confirm():
                         break
                     
             uid.clear()
-            
+            # Update SQL Fields 
             update_locker = "UPDATE item_information SET Locker_Assigned = %s WHERE item_deposit_id = %s "
             locker_updated = (locker_id, check_uid)
-            
+
             updateData.execute(update_locker, locker_updated)
             mydb.commit()
             
+            # Part Where Locker Open/Closes , Chute to be used 
             if button == 0 and led == 0:
                 chute()
             else:
@@ -184,6 +184,7 @@ def confirm():
             
             now = datetime.datetime.now()
             
+            # Update SQL Fields
             
             update_locker = "UPDATE item_information SET Status = %s WHERE item_deposit_id = %s"
             locker_updated = ('DP',check_uid)
@@ -196,6 +197,7 @@ def confirm():
             updateData.execute(update_locker, locker_updated)
             mydb.commit()
             
+            # Chute should be Available / Locker Should not be available
             if locker_size_assigned != "C":
                 
                 update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
@@ -204,7 +206,7 @@ def confirm():
                 mydb.commit()
                 
             
-            
+            # ID generator for Retrieve ID 
             while True:
                 rdmid2 = id_generator(6, "QWERTYUIOPASDFGHJKLZXCVBNM123456789")
             
@@ -228,9 +230,9 @@ def confirm():
                     u_Info = (user, )
                     getData.execute(getUser, u_Info)
                     finder_info = getData.fetchone()
-                    for row in finder_info:
-                        email2 = str(finder_info[2])
-                        break
+                    
+                    email2 = str(finder_info[2])
+                        
                     
                     sender = Emailer()
                     
@@ -256,7 +258,7 @@ def retrieve():
         warn("", "Please enter ID")
         
     
-        
+    # To check if ID exist     
     else:
         IdCheckSQL = "SELECT * FROM item_information WHERE Status = %s AND Item_Retrieve_Id = %s"
         IdCheckSQLVar = ('DP', check_uid)
@@ -268,13 +270,10 @@ def retrieve():
             
             getData.execute(IdCheckSQL, IdCheckSQLVar)
             IdCheckSQLResult = getData.fetchone()
-            
-            
-            
+                    
             locker_assigned = IdCheckSQLResult[10]
                 
-            
-            
+            # pull the information to what locker it was assigned to 
             lockerinfo = "SELECT * FROM locker WHERE locker_id = %s"
             lockerinfovar = (locker_assigned,)
             getData.execute(lockerinfo, lockerinfovar)
@@ -283,6 +282,7 @@ def retrieve():
             led = locker_record[4]
             button = locker_record[3]
             
+            # Part Where Locker Open/Closes , Inform user to head to counter if item was deposited via the chute
             if led == 0 or button == 0:
                 info("","Please head to counter to retrieve lost item")
             else:
@@ -293,27 +293,28 @@ def retrieve():
                 button_gpio.wait_for_press()
                 lock_gpio.off()
                 
+                #Update SQL fields 
+                update_locker = "UPDATE item_information SET Status = %s WHERE item_retrieve_id = %s "
+                locker_updated = ('RT', check_uid)
+                updateData.execute(update_locker, locker_updated)
+                mydb.commit()
+
+                
+                now = datetime.datetime.now()
+                update_locker = "UPDATE item_information SET Time_Retrieved = %s WHERE item_retrieve_id = %s "
+                locker_updated = (now, check_uid)
+                updateData.execute(update_locker, locker_updated)
+                mydb.commit()
+
+                
+                update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
+                locker_updated = ('A', locker_assigned)
+                updateData.execute(update_locker, locker_updated)
+                mydb.commit()
+                
                 info("","Thank you for retrieving your lost item.")
                 
             
-            
-            update_locker = "UPDATE item_information SET Status = %s WHERE item_retrieve_id = %s "
-            locker_updated = ('RT', check_uid)
-            updateData.execute(update_locker, locker_updated)
-            mydb.commit()
-
-            
-            now = datetime.datetime.now()
-            update_locker = "UPDATE item_information SET Time_Retrieved = %s WHERE item_retrieve_id = %s "
-            locker_updated = (now, check_uid)
-            updateData.execute(update_locker, locker_updated)
-            mydb.commit()
-
-            
-            update_locker = "UPDATE locker SET Locker_Status = %s WHERE Locker_id = %s "
-            locker_updated = ('A', locker_assigned)
-            updateData.execute(update_locker, locker_updated)
-            mydb.commit()
             
             
             uid1.clear()
@@ -344,6 +345,7 @@ def confirmReport():
     if chk_name=="" or chk_email=="" or chk_descrip == "" or chk_location =="":
         warn("", "Please enter your name, email, item description, and location found")
         
+    #Assign Locker Size     
     else:
         if choice.value == "Small":
             size = "S"
@@ -353,7 +355,8 @@ def confirmReport():
             size = "L"
         else:
             size = "C"
-        
+            
+        # Generate Deposit ID 
         while True:
             rdmid = id_generator(6, "QWERTYUIOPASDFGHJKLZXCVBNM123456789")
             
@@ -366,7 +369,7 @@ def confirmReport():
             if rChecker == 1:
                 continue
             else:
-                
+                # Check if user Exist 
                 Check()
                 fInfo = getData.fetchall()
                 fInfoCheck = getData.rowcount
@@ -451,6 +454,7 @@ submitItem = PushButton(app,text = "Submit lost item",height=1,width=20,command=
 submitItem.text_size = 16
 retrieveItem =PushButton(app,text = "Retrieve item",height=1,width=20,command=retrieveItem)
 retrieveItem.text_size = 16
+#Display in full screen
 app.display
 app.full_screen = True
 
@@ -472,8 +476,10 @@ formBox = Box(window,layout="grid")
 PushButton(formBox,text = "Confirm",command=confirm, grid=[0,0]).text_size=14
 PushButton(formBox,text = "Close",command=Close, grid=[1,0]).text_size=14
 
+#Spacing
 Text(window)
 
+#Instructions for on how to use locker
 formBoxInstruc = Box(window,layout="grid")
 Text(formBoxInstruc, grid=[0,0], text="How to use the locker:",size =14,align="left")
 Text(formBoxInstruc, grid=[0,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
@@ -482,7 +488,7 @@ Text(formBoxInstruc, grid=[0,3], text="3. If successful, look for a locker with 
 Text(formBoxInstruc, grid=[0,4], text="4. Click 'Ok' on the pop-up window before depositing item    ",size =12,align="left")
 Text(formBoxInstruc, grid=[0,5], text="5. Close the locker once item has been deposited",size =12,align="left")
 
-
+#Instructions for on how to use chute
 Text(formBoxInstruc, grid=[1,0], text="How to use the Chute:",size =14,align="left")
 Text(formBoxInstruc, grid=[1,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
 Text(formBoxInstruc, grid=[1,2], text="2. Click Confirm to submit ID",size =12,align="left")
@@ -490,7 +496,7 @@ Text(formBoxInstruc, grid=[1,3], text="3. If successful, open the chute",size =1
 Text(formBoxInstruc, grid=[1,4], text="4. Click 'Ok' on the pop-up window before depositing item",size =12,align="left")
 Text(formBoxInstruc, grid=[1,5], text="5. Close the chute once item has been deposited",size =12,align="left")
 
-
+#Form for retrieve lost item
 retrieveWindow = Window(app, title= " ",height = 500,width = 900)
 retrieveWindow.hide()
 picture = Picture(retrieveWindow,image="rplogo.png")
@@ -500,13 +506,16 @@ Text(retrieveWindow, text = "Please enter ID",size = 16)
 uid1 = TextBox(retrieveWindow,width =20)
 uid1.text_size=14
 retrieveWindow.full_screen=True
+
 #Layout for buttons
 formboxRtv = Box(retrieveWindow,layout="grid")
 PushButton(formboxRtv,text = "Confirm",command=retrieve, grid=[0,0]).text_size=14
 PushButton(formboxRtv,text = "Close",command=Close, grid=[1,0]).text_size=14
 
+#Spacing
 Text(retrieveWindow)
 
+#Instructions for on how to use locker
 formBoxInstruc = Box(retrieveWindow,layout="grid")
 Text(formBoxInstruc, grid=[0,0], text="How to retrieve item from locker:",size =14,align="left")
 Text(formBoxInstruc, grid=[0,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
@@ -515,7 +524,7 @@ Text(formBoxInstruc, grid=[0,3], text="3. If successful, look for a locker with 
 Text(formBoxInstruc, grid=[0,4], text="4. Click 'Ok' on the pop-up window before retrieving item    ",size =12,align="left")
 Text(formBoxInstruc, grid=[0,5], text="5. Close the locker once item has been retrieved",size =12,align="left")
 
-
+#Instructions for on how to use chute
 Text(formBoxInstruc, grid=[1,0], text="How to item from Chute:",size =14,align="left")
 Text(formBoxInstruc, grid=[1,1], text="1. Enter the 6 digit ID sent",size =12,align="left")
 Text(formBoxInstruc, grid=[1,2], text="2. Click Confirm to submit ID",size =12,align="left")
@@ -529,36 +538,40 @@ windowReport.hide()
 picture = Picture(windowReport,image="rplogo.png")
 message1 = Text(windowReport, text="Please enter item details",font="Arial",size=20)
 Text(windowReport)
-#Layout for user to enter item details
-formBox1 = Box(windowReport,layout="grid")
-Text(formBox1, grid=[0,0],text="Name*",size =14)
-name = TextBox(formBox1, grid=[1,0],width=20)
+
+#Layout for user to enter item details to report lost item
+formboxDetails = Box(windowReport,layout="grid")
+Text(formboxDetails, grid=[0,0],text="Name*",size =14)
+name = TextBox(formboxDetails, grid=[1,0],width=20)
 name.text_size=14
-Text(formBox1, grid=[0,1], text="Email*",size =14)
-email = TextBox(formBox1, grid=[1,1],width=20)
+Text(formboxDetails, grid=[0,1], text="Email*",size =14)
+email = TextBox(formboxDetails, grid=[1,1],width=20)
 email.text_size=14
 
-Text(formBox1, grid=[0,2],text="Locker Size",size =14)
-choice = ButtonGroup(formBox1,
+Text(formboxDetails, grid=[0,2],text="Locker Size",size =14)
+choice = ButtonGroup(formboxDetails,
             options=["Small", "Medium", "Large","Chute"],
             selected="Small",grid=[1,2],align="left" )
 choice.text_size=12
 
-Text(formBox1, grid=[0,3],text="Item Description*",size =14)
-description = TextBox(formBox1, grid=[1,3],width=20)
+Text(formboxDetails, grid=[0,3],text="Item Description*",size =14)
+description = TextBox(formboxDetails, grid=[1,3],width=20)
 description.text_size=14
-Text(formBox1, grid=[0,4],text="Location Found*",size =14)
-location = TextBox(formBox1, grid=[1,4],width=20)
+Text(formboxDetails, grid=[0,4],text="Location Found*",size =14)
+location = TextBox(formboxDetails, grid=[1,4],width=20)
 location.text_size=14
 Text(windowReport)
 windowReport.full_screen=True
+
 #Layout for buttons
 formboxRpt = Box(windowReport,layout="grid")
 PushButton(formboxRpt,text = "Confirm",command=confirmReport, grid=[0,0])
 PushButton(formboxRpt,text = "Close",command=Close, grid=[1,0])
 
+#Spacing
 Text(windowReport)
 
+#Text to tell user to provide accurate information
 Text(windowReport,text="Please provide accurate details for item description and location found", size =14)
 
 
